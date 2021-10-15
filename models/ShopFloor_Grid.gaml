@@ -1,6 +1,5 @@
 /**
-* Name: superstuff
-* Model_Based_VS_SRA_Stigmergy
+* Name: ShopFloor_Grid
 * Author: Sebastian Schmid
 * Description: defines superclass for all species as well as the shop floor   
 * Tags: 

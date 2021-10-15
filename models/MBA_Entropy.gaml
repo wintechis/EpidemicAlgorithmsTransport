@@ -1,8 +1,7 @@
 /**
-* Name: MBA_Transporter
-* Model_Based_VS_SRA_Stigmergy 
+* Name: MBA_Entropy
 * Author: Sebastian Schmid
-* Description: uses model-based agents with local communication and knowledge sharing and gossipping
+* Description: Local communication for MBAs using anti-entropy (Demers)
 * Tags: 
 */
 
@@ -10,37 +9,29 @@
 @no_warning
 model MBA_Entropy
 
-import "thing_and_station.gaml"
+import "Station_Item.gaml"
 
 global{	
 	
 	init{
-		create transporter number: no_transporter;
-		
-					
+		create transporter number: no_transporter;				
 	}
-
 }
 
 
 
 //##########################################################
 //schedules agents, such that the simulation of their behaviour and the reflex evaluation is random and not always in the same order 
-species scheduler schedules: shuffle(thing+station+transporter);
+species scheduler schedules: shuffle(item+station+transporter);
 
 
 species transporter parent: superclass schedules:[]{
-	thing load <- nil;
+	item load <- nil;
 	
 	/*A station can EITHER be described by agent_model & a timestamp, XOR a death certificate - it MUST NOT be in both states*/
 	map<rgb, point> agent_model <- []; //model about positions of already found or communicated stations. Entries have shape [rgb::location] 
 	map<rgb, int> timestamps <- []; //save the most recent point in time when an agent learned or observed about an station. [rgb::int]
 	map<rgb, int> death_certificates <- []; //death certificates for untruths and the time we learned about this. [rgb::int]
-	
-	float usage <- 0;
-	float usage_prct <- 0 update: usage / (cycle = 0 ? 1 : cycle);
-	
-	float amount_of_steps<- 0.0; //the amount of steps this transporter made after it pickep up an item   
 	
 	init{
 		
@@ -400,14 +391,7 @@ species transporter parent: superclass schedules:[]{
 				location <- myself.my_cell.location;
 			}			
 	}
-	
-	reflex update_usage_counter{
-		if(load != nil)
-		{
-			usage <- usage + 1;
-		}
-	}
-		
+			
 	action deliver_load{
 		
 		ask load{
@@ -421,12 +405,6 @@ species transporter parent: superclass schedules:[]{
 				
 		my_cell <- cell; //if the cell is free - go there
 		location <- my_cell.location;
-		
-		//if I am also carrying something around, increase my step counter
-		if(load != nil)
-		{
-			amount_of_steps <- amount_of_steps +1;
-		}
 		
 	}
 
@@ -508,7 +486,7 @@ experiment MBA_Entropy_No_Charts type:gui{
 		 		species shop_floor aspect:position;
 		 		species transporter aspect: info;
 		 		species station aspect: base;
-		 		species thing aspect: base;
+		 		species item aspect: base;
 	
 		 }
 		 
@@ -524,7 +502,7 @@ experiment MBA_Entropy_No_Charts type:gui{
 experiment MBA_Entropy type: gui {
 	// Define parameters here if necessary
 	
-	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles<-500;  
+	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles<-100;  
 	parameter var: width<-50; //25, 50, 100	
 	parameter var: cell_width<- 1.0; //2.0, 1.0 , 0.5
 	parameter "No. of transporters" category: "Transporter" var: no_transporter<-4*17 ; // 17, 4*17, 8*17
@@ -541,7 +519,7 @@ experiment MBA_Entropy type: gui {
 	 		grid shop_floor lines: #black;
 	 		species transporter aspect: base;
 	 		species station aspect: base;
-	 		species thing aspect: base;
+	 		species item aspect: base;
 
 	 }	 
 	  

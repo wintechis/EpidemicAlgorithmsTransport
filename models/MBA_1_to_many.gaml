@@ -1,13 +1,13 @@
 /**
-* Name: MBA_1_to_1
+* Name: MBA_1_to_many
 * Author: Sebastian Schmid
-* Description: Simple, local communication from agent to ONE neighbor
+* Description: Simple, local communication from agent to all its neighbors
 * Tags: 
 */
 
 
 @no_warning
-model MBA_1_to_1
+model MBA_1_to_many
 
 import "Station_Item.gaml"
 
@@ -37,7 +37,8 @@ species transporter parent: superclass schedules:[]{
 	
 	//whenever other transporters are near me - that is: at least one of my adjacent neighbors contains another transporter
 	reflex exchange_knowledge when:(!empty(agents_inside(my_cell.neighbors) where (string(type_of(each)) = "transporter"))) {		
-		list<transporter> neighbor_transporters <- one_of(agents_inside(my_cell.neighbors) where (string(type_of(each)) = "transporter")); ////choose ONE random neighbor and share knowledge each cycle
+		
+		list<transporter> neighbor_transporters <- agents_inside(my_cell.neighbors) where (string(type_of(each)) = "transporter"); ////choose ONE random neighbor and share knowledge each cycle
 		
 		//add all knowledges up, whenever there are differences
 		//We ignore differing knowledge about the world - we cannot say for sure who is right (even if one is "more up to date" than the other... it could still be wrong, because the world changed meanwhile..) 	
@@ -191,7 +192,7 @@ species transporter parent: superclass schedules:[]{
 				location <- myself.my_cell.location;
 			}			
 	}
-		
+	
 	action add_knowledge(point pt, rgb col){
 		
 		add pt at:col to: station_position; // add/update knowledge about new station and assign a point to a color 	
@@ -215,8 +216,7 @@ species transporter parent: superclass schedules:[]{
 	action take_a_step_to(shop_floor cell){
 				
 		my_cell <- cell; //if the cell is free - go there
-		location <- my_cell.location;
-		
+		location <- my_cell.location;		
 	}
 			
 	aspect base{
@@ -233,7 +233,7 @@ species transporter parent: superclass schedules:[]{
 }
 
 //##########################################################
-experiment MBA_1_to_1_No_Charts type:gui{
+experiment MBA_1_to_many_No_Charts type:gui{
 	//parameter "Station placement distribution" category: "Simulation settings" var: selected_placement_mode among:placement_mode; //provides drop down list
 		
 	output {	
@@ -253,7 +253,7 @@ experiment MBA_1_to_1_No_Charts type:gui{
 	
 }
 
-experiment MBA_1_to_1 type: gui {
+experiment MBA_1_to_many type: gui {
 
 	//Define attributes, actions, a init section and behaviors if necessary
 
@@ -266,7 +266,7 @@ experiment MBA_1_to_1 type: gui {
 	parameter var: cell_width<- 1.0; //2.0, 1.0 , 0.5
 	parameter "No. of transporters" category: "Transporter" var: no_transporter<-4*17 ; // 17, 4*17, 16*17
 	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 4*4 (16), 4*4*4 (64)
-	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles<- 100#cycles; //500, 2000, 8000 -- amount of cycles until stations change their positions
+	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles<- 100#cycles; //
 			
 	output {
 
@@ -310,7 +310,7 @@ experiment MBA_1_to_1 type: gui {
 }
 
 /*Runs an amount of simulations in parallel, keeps the seeds and gives the final values after 10k cycles*/
-experiment MBA_1_to_1_batch type: batch until: (cycle >= 10000) repeat: 40 autorun: true keep_seed: true{
+experiment MBA_1_to_many_batch type: batch until: (cycle >= 10000) repeat: 40 autorun: true keep_seed: true{
 
 	
 	reflex save_results_explo {
@@ -325,7 +325,7 @@ experiment MBA_1_to_1_batch type: batch until: (cycle >= 10000) repeat: 40 autor
 }
 
 /*Runs an amount of simulations in parallel, varies the the disturbance cycles from 25 to 500 and gives the final values after 10k cycles*/
-experiment MBA_1_to_1_Variation_batch type: batch until: (cycle >= 10000) repeat: 40 autorun: true keep_seed: true{ 
+experiment MBA_1_to_many_Variation_batch type: batch until: (cycle >= 10000) repeat: 40 autorun: true keep_seed: true{ 
 
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [25#cycles, 50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
 	
