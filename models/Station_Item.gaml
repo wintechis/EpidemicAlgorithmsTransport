@@ -25,8 +25,9 @@ global {
 	float avg_thing_lifespan <- 0.0;
 	float sum_of_thing_lifespan <- 0.0;
 	
-	init{
-									
+	map<rgb, point> truth;
+	
+	init{					
 		create station number: no_station returns: stations;
 		
 	
@@ -134,17 +135,6 @@ global {
 				
 			}
 			
-			/* 
-							#steelblue, 
-							#tan,
-							#teal,
-							#thistle, 
-							#tomato, 
-							#transparent, 
-							#turquoise, 
-							#violet,
-							#wheat
-			*/
 			default{
 				warn "Something went wrong during scenario init!!";
 			}
@@ -165,7 +155,7 @@ global {
 				add 0 at: col_tmp[i] to: delivered; //create a key::value pair in the delivered variable, corresponding to a color::amount_of_delivered_things_of_this_color pair later
 			}
 			
-			i <- i+1;//to get next colo
+			i <- i+1;//to get next color
 		}
 
 		
@@ -179,26 +169,31 @@ global {
 	
 		float factor <-  1/(sqrt(no_station)+1) with_precision 2; //strict_placement_factor;
 		
-		
+		//distribute stations equally
 		loop x from: 1 to: sqrt(no_station) {
 		
 			loop y from: 1 to: sqrt(no_station) {
 							
-				//station[(x-1)*int(sqrt(no_station)) + (y-1)].my_cell <- shop_floor({x*shop_floor_diameter*factor ,y*shop_floor_diameter*factor});
-				//station[(x-1)*int(sqrt(no_station)) + (y-1)].my_cell <- shop_floor({x*cell_width*factor ,y*cell_width*factor});
 				station[(x-1)*int(sqrt(no_station)) + (y-1)].my_cell <- shop_floor[int(floor(x*width*factor)),int(floor(y*width*factor))];
 			
 			}
 			
 		}
 		
+		//initialize stations with cell and location
 		loop s over: stations{	
 
 			ask s{
 					location<-my_cell.location ;
 				}	
 		}
+		
 
+		//add stations colot and position to the "truth"
+		ask station {
+			
+			add location at: accept_color to: truth;	
+		}
 	}
 
 
@@ -232,10 +227,17 @@ global {
 			}
 			
 			i <- i+1;//to get next color
-		}	
+		}
+		
+		
+		//update truth
+		ask station {
+			
+			add location at: accept_color to: truth;	
+		}
 	}
 	
-	/* Investigation variables - PART II (other part is places before init block)*/
+	/* Investigation variables - PART II (other part is placed before init block)*/
 	reflex update_avg_thing_lifespan{
 		
 		sum_of_thing_lifespan <- 0.0;
@@ -250,8 +252,6 @@ global {
 		
 		avg_thing_lifespan <- ((length(item.population) = 0) ? 0 : sum_of_thing_lifespan /(length(item.population))); 
 		
-		//write "sum: " + string(sum_of_thing_lifespan) + ", amt: " + string(length(thing.population))+ ", avg: " + string(avg_thing_lifespan);
-	
 	}	
 
 }
@@ -265,7 +265,7 @@ species item parent: superclass schedules:[]{
 	
 	aspect base{
 		
-		draw circle(cell_width) color: color border:#black;
+		draw circle(cell_width*0.6) color: color border:#black;
 	}
 	
 	map get_states{
