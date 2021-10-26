@@ -437,7 +437,7 @@ experiment MBA_Rumor type: gui {
 }
 
 /*Runs an amount of simulations in parallel, varies the the disturbance cycles*/
-experiment MBA_AE_var_batch type: batch until: (cycle >= 1000) repeat: 2 autorun: true keep_seed: true{ 
+experiment MBA_AE_var_batch type: batch until: (cycle >= 5000) repeat: 2 autorun: true keep_seed: true{ 
 
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
 	

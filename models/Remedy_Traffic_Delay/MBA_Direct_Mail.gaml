@@ -23,8 +23,8 @@ global{
 	init{
 		create transporter number: no_transporter;		
 		
-		write "Agent communication mode is set to " + communication_mode color:#black ;	
-		write "Distrubance cycle is " + disturbance_cycles;
+		//write "Agent communication mode is set to " + communication_mode color:#black ;	
+		//write "Distrubance cycle is " + disturbance_cycles;
 		
 		ask transporter{
 			add name to: tpid;
@@ -101,16 +101,18 @@ species transporter parent: superclass schedules:[]{
 				tmp_traffic <- tmp_traffic +1; //sent another mail
 				
 				//if mail content is more up to date than receiver knowledge --> apply
-				if(((myself.timestamps at col) > (self.timestamps at col)) or !(self.timestamps.keys contains col)){
+				if((myself.timestamps at col) > (self.timestamps at col)){// or !(self.timestamps.keys contains col)){
 											
 					add (myself.agent_model at col) at:col to: self.agent_model; //save color and position
 					add (myself.timestamps at col) at:col to: self.timestamps; //save point in time of last information
+					
+					//TODO: do I have to check if the receiver has this potenital new information queued in its mail_updates? And if so delete it? Would be a good idea...
 				}
 				
 			}
 		}
 		
-		mail_updates <- []; //agent sent all updates (without checking if they were applied or succesful). Empty queue.
+		mail_updates <- []; //agent sent all updates (without checking if they were applied or succesful). Reset list.
 		
 		if(tmp_traffic != 0) //if != 0 --> communication took place
 		{
@@ -118,9 +120,6 @@ species transporter parent: superclass schedules:[]{
 		}
 	}
 	
-	
-
-
 	
 	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	
@@ -151,7 +150,7 @@ species transporter parent: superclass schedules:[]{
 	
 	/*After surroundings, other agents and internal model have been checked, apply respective actions with up-to-date knowledge acc. to my model*/
 	//if i am empty or do not know where my item's station is -> wander
-	reflex random_movement when:((load = nil) or ((load != nil) and !(agent_model contains_key load.color))) {
+	reflex random_movement when:((load = nil) or ((load != nil) and !(agent_model.keys contains load.color))) {
 		
 		//generate a list of all my neighbor cells in a random order
 		list<shop_floor> s <- shuffle(my_cell.neighbors); //get all cells with distance ONE
@@ -165,9 +164,11 @@ species transporter parent: superclass schedules:[]{
 	}
 	
 	//if I transport an item and know it about the station, I'll go to nearest neighboring field of this station 
-	reflex exact_movement when:((load != nil) and (agent_model contains_key load.color)) {
+	reflex exact_movement when:((load != nil) and (agent_model.keys contains load.color)) {
 				
 		shop_floor target <- shop_floor(agent_model at load.color); //Key of pair contains the position. Target is the station itself, but we will not enter the stations cell. When we are next to it, our item will be loaded off, s.t. we won't enter the station 
+		
+		//write string(load.color) + " - " + string(agent_model at load.color) + " -- " + target; 
 		
 		//contains neighboring cells in ascending order of distance, meaning: first cell has least distance
 		list<shop_floor> options <- my_cell.neighbors sort_by (each distance_to target);
@@ -422,7 +423,7 @@ experiment MBA_Direct_Mail type: gui {
 }
 
 /*Runs an amount of simulations in parallel, varies the the disturbance cycles*/
-experiment MBA_DM_var_batch type: batch until: (cycle >= 1000) repeat: 2 autorun: true keep_seed: true{ 
+experiment MBA_DM_var_batch type: batch until: (cycle >= 5000) repeat: 20 autorun: true keep_seed: true{ 
 
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
 	

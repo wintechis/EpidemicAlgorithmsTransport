@@ -15,6 +15,7 @@ import "../Station_Item.gaml"
 global{
 			
 	map<rgb, point> station_position <- []; //represents the monolithic knowledge about positions of already found or communicated stations. Entries have shape [rgb::location]
+	float sum_traffic <-0 ; // sum of msgs per transporter / amount transporters
 		
 	
 	init{						
@@ -33,6 +34,8 @@ species scheduler schedules: shuffle(item+station+transporter);
 
 species transporter parent: superclass schedules:[]{
 	item load <- nil;
+	
+	float total_traffic <- 0; //average amount of messages sent to communicate
 	
 	init{
 		
@@ -168,8 +171,11 @@ species transporter parent: superclass schedules:[]{
 		
 	action add_knowledge(point pt, rgb col){
 		
-		add pt at:col to: station_position; // add/update knowledge about new station and assign a point to a color 	
-		
+		//if something changed, send an update to the blackboard
+		if((station_position at col) != pt){
+			add pt at:col to: station_position; // add/update knowledge about new station and assign a point to a color
+			float total_traffic <- 0; 	
+		}
 	}
 	
 	action remove_knowledge(rgb col){
@@ -207,7 +213,7 @@ species transporter parent: superclass schedules:[]{
 }
 
 //##########################################################
-experiment Blackboard_Transporter_No_Charts type:gui{
+experiment MBA_BB_No_Charts type:gui{
 	parameter "Station placement distribution" category: "Simulation settings" var: selected_placement_mode among:placement_mode; //provides drop down list
 		
 	output {	
@@ -229,7 +235,7 @@ experiment Blackboard_Transporter_No_Charts type:gui{
 	
 }
 
-experiment Blackboard_Transporter type: gui {
+experiment MBA_BB type: gui {
 
 	
 	// Define parameters here if necessary
@@ -282,38 +288,30 @@ experiment Blackboard_Transporter type: gui {
   
 }
 
-/*Runs an amount of simulations in parallel, keeps the seeds and gives the final values after 10k cycles*/
-experiment Blackboard_Transporter_batch type: batch until: (cycle >= 10000) repeat: 40 autorun: true keep_seed: true{
+/*Runs an amount of simulations in parallel, varies the the disturbance cycles*/
+experiment MBA_BB_var_batch type: batch until: (cycle >= 5000) repeat: 20 autorun: true keep_seed: true{ 
 
+	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
+	
+	parameter var: width<-25; //25, 50, 100	
+	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
+	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
+	parameter "No. of stations" category: "Stations" var: no_station<-4; //4, 4*4 (16), 4*4*4 (64)
+	
 	
 	reflex save_results_explo {
     ask simulations {
     	
     	float mean_cyc_to_deliver <- ((self.total_delivered = 0) ? 0 : self.time_to_deliver_SUM/(self.total_delivered)); //
     	
-    	save [int(self), self.seed, disturbance_cycles ,self.cycle, self.total_delivered, mean_cyc_to_deliver] //..., ((total_delivered = 0) ? 0 : time_to_deliver_SUM/(total_delivered)) 
-          to: "result/4_Blackboard_results.csv" type: "csv" rewrite: false header: true; //rewrite: (int(self) = 0) ? true : false
-    	}       
-	}		
-}
-
-/*Runs an amount of simulations in parallel, varies the the disturbance cycles from 25 to 500 and gives the final values after 10k cycles*/
-experiment Blackboard_Transporter_Variation_batch type: batch until: (cycle >= 10000) repeat: 40 autorun: true keep_seed: true{ 
-
-	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [25#cycles, 50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
-	
-	parameter var: width<-100; //25, 50, 100	
-	parameter var: cell_width<- 0.5; //2.0, 1.0 , 0.5
-	parameter "No. of transporters" category: "Transporter" var: no_transporter<-272; // 17, 4*17 (68), 4*4*17 (272)
-	parameter "No. of stations" category: "Stations" var: no_station<-64; //4, 4*4 (16), 4*4*4 (64)
-	
-	reflex save_results_explo {
-    ask simulations {
+    	ask self.transporter{
+    		sum_traffic <- total_traffic + sum_traffic; //add up total amount of msgs
+    	}
     	
-    	float mean_cyc_to_deliver <- ((self.total_delivered = 0) ? 0 : self.time_to_deliver_SUM/(self.total_delivered)); //
+    	float avg_traffic <- ((self.sum_traffic = 0) ? 0 : self.sum_traffic/(self.no_transporter)) ; // sum of msgs per transporter / amount transporters 
     	
-    	save [int(self), self.seed, disturbance_cycles ,self.cycle, self.total_delivered, mean_cyc_to_deliver] //..., ((total_delivered = 0) ? 0 : time_to_deliver_SUM/(total_delivered)) 
-          to: "result_var/"+string(width)+"_Blackboard_variation_results.csv" type: "csv" rewrite: false header: true; //rewrite: (int(self) = 0) ? true : false
+    	save [int(self), self.seed, disturbance_cycles, self.cycle, avg_traffic, self.total_delivered, mean_cyc_to_deliver] //..., ((total_delivered = 0) ? 0 : time_to_deliver_SUM/(total_delivered)) 
+           to: "result_var/"+ experiment.name +"_"+ string(width)+".csv" type: "csv" rewrite: false header: true; //rewrite: (int(self) = 0) ? true : false
     	}       
 	}		
 }

@@ -13,7 +13,7 @@ import "../Station_Item.gaml"
 
 global{	
 	
-	string communication_mode <- "PUSH-PULL"; //PUSH, PULL or PUSH-PULL
+	string communication_mode <- "PULL"; //PUSH, PULL or PUSH-PULL
 	
 	//knowledge spread stuff
 	list<string> tpid;
@@ -23,8 +23,8 @@ global{
 	init{
 		create transporter number: no_transporter;		
 		
-		write "Agent communication mode is set to " + communication_mode color:#black ;	
-		write "Distrubance cycle is " + disturbance_cycles;
+		//write "Agent communication mode is set to " + communication_mode color:#black ;	
+		//write "Distrubance cycle is " + disturbance_cycles;
 		
 		ask transporter{
 			add name to: tpid;
@@ -42,7 +42,7 @@ global{
 		
 		if(length(tpid) = 0)
 		{
-			write "All transporters know the truth -- " + cycle;
+			//write "All transporters know the truth -- " + cycle;
 		} 
 	}
 	
@@ -471,7 +471,7 @@ experiment MBA_AE type: gui {
 }
 
 /*Runs an amount of simulations in parallel, varies the the disturbance cycles*/
-experiment MBA_AE_var_batch type: batch until: (cycle >= 1000) repeat: 2 autorun: true keep_seed: true{ 
+experiment MBA_AE_var_batch type: batch until: (cycle >= 5000) repeat: 20 autorun: true keep_seed: true{ 
 
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
 	
