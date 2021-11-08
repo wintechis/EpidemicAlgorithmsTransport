@@ -1,24 +1,19 @@
 /**
-* Name: MBA_Direct_Mail
+* Name: MBA_AE
 * Author: Sebastian Schmid
-* Description: Communication for MBAs that uses direct mail (send updates as broadcast to everyone)
+* Description: Local communication for MBAs using anti-entropy with push/pull/push-pull
 * Tags: 
 */
 
 
 @no_warning
-model MBA_Direct_Mail
+model MBA_AE
 
 import "../Station_Item.gaml"
 
 global{	
 	
-	string communication_mode <- "PUSH-PULL"; //PUSH, PULL or PUSH-PULL
-	
-	//knowledge spread stuff
-	list<string> tpid;
-	float sum_traffic <-0 ; // sum of avg msgs per transporter / amount transporters
-	
+	string communication_mode <- "PUSH"; //PUSH, PULL or PUSH-PULL, >or<, 1-PUSH, 1-PULL
 	
 	init{
 		create transporter number: no_transporter;		
@@ -26,32 +21,25 @@ global{
 		//write "Agent communication mode is set to " + communication_mode color:#black ;	
 		//write "Distrubance cycle is " + disturbance_cycles;
 		
-		ask transporter{
-			add name to: tpid;
-		}
+	}
 
-	}
-	
-	reflex knowledge_spread	when:(length(tpid) != 0){
+	//every "disturbance_cycles" cycles, we evluate the residue (aka the percentage of agents that do NOT know the truth)
+	reflex evaluate_residue when: (knowledge = true) and (cycle > 1) and every(disturbance_cycles-1){
+		
+		float amt_suscpetible <- 0;
+		
+		//TODO: this checks for ALL entries in the model and does not differentiate
+		//should we also consider "at least 1,2,3,...,N entries are correct"?	
 		ask transporter {
-			
-			if(agent_model = truth){
-				remove name from: tpid;
+			if(self.agent_model != truth){
+				amt_suscpetible <- amt_suscpetible  +1;
 			}
-		}		
+		}
 		
-		if(length(tpid) = 0)
-		{
-			//write "All transporters know the truth -- " + cycle;
-		} 
-	}
+		add (amt_suscpetible/float(no_transporter)) to: residue;
+		
+	}	
 	
-	reflex reset_tpid when: (cycle > 1) and every(disturbance_cycles){
-		ask transporter{
-			add name to: tpid;
-		}		
-	}
-		
 }
 
 
@@ -68,10 +56,8 @@ species transporter parent: superclass schedules:[]{
 	map<rgb, point> agent_model <- []; //model about positions of already found or communicated stations. Entries have shape [rgb::location] 
 	map<rgb, int> timestamps <- []; //save the most recent point in time when an agent learned or observed about an station. [rgb::int]
 	
-	list<rgb> mail_updates <- []; //List of station updated that agent wants to send to other all other agents as direct mail. Entries have shape [rgb] 
-
-	float total_traffic <- 0; //average amount of messages sent to communicate 
-	float amt_of_cycles_when_communicated <-0; 
+	float t_avg <- 0.0; //average time after an update injection where this agent noted a change or got a msg about one
+	int updates <- 0; //received/noticed updates
 	
 	init{
 		
@@ -86,40 +72,193 @@ species transporter parent: superclass schedules:[]{
 				
 	}
 	
-	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%1-to-N communication%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	
-	//Take all updates and send them as "mail" to all other agents - if I have to mail something
-	reflex direct_mail when: (!empty(mail_updates)) {
+	/*Demers et al. also discuss a limitation of connections to reduce the overall traffic (e.g. the limit the exchange to only 1 other database). They use it because of "realism reasons", as there might be lots of sites to update. 
+	 * Here, as out neighbors are per se only a small subset of the overall transporter population, we do not include another artificial limitation and rather consider all available exchange partners instead.
+	 */
+	
+	//Demers said AE is executed only periodically, so we can limit communication attempts to occur only ever X cycles and still assume the update will be spread among the population
+	int period <- 1#cycles; // we attempt an exchange with neighbors every X cycles 
+	
+	reflex communicate_with_neighbors when: (!empty(agents_inside(my_cell.neighbors) of_species transporter) and every(period) ) {
 		
-		//list<transporter> neighboring_agents <-  agents_inside(my_cell.neighbors) of_species transporter; //returns list of all other transporters inside surroundings
-		int tmp_traffic <- 0 ;//holds amt of sent msgs this cycle
+		switch communication_mode{
+			
+			match "PUSH"{
+				do PUSH_to_nearby_neighbors;
+			}
+			
+			match "PULL"{
+				do PULL_to_nearby_neighbors;
+			}
+			
+			match "PUSH-PULL"{
+				do PUSH_to_nearby_neighbors;
+				do PULL_to_nearby_neighbors;
+			}
+			
+			match "1-PUSH"{
+				do AE1_PUSH;
+			}
+			match "1-PULL"{
+				do AE1_PULL;
+			}
+			
+			default{
+				warn "Error in communication of agent " + name;
+			}
+		}
+		
+		
+	}
+	
+	//actively check surroundings for other agent and PUSH own knowledge about observations
+	action PUSH_to_nearby_neighbors{// when: (!empty(agents_inside(my_cell.neighbors) of_species transporter) and (communication_mode = "PUSH")) {
+		
+		list<transporter> neighboring_agents <-  agents_inside(my_cell.neighbors) of_species transporter; //returns list of all other transporters inside surroundings
+		
 		//Demers et al. take SOME of the other databases; we PUSH neighbors to all for now
-		ask transporter{
-						
-			loop col over: myself.mail_updates {
+		ask neighboring_agents{		
+
+			loop col over: myself.timestamps.keys { //myself.list_updates { //
 				
-				tmp_traffic <- tmp_traffic +1; //sent another mail
+				total_traffic <- total_traffic + 1; //sent update mail to other agent
 				
-				//if mail content is more up to date than receiver knowledge --> apply
-				if((myself.timestamps at col) > (self.timestamps at col)){// or !(self.timestamps.keys contains col)){
+				if(((myself.timestamps at col) > (self.timestamps at col)) or !(self.timestamps.keys contains col)){
 											
 					add (myself.agent_model at col) at:col to: self.agent_model; //save color and position
 					add (myself.timestamps at col) at:col to: self.timestamps; //save point in time of last information
 					
-					//TODO: do I have to check if the receiver has this potenital new information queued in its mail_updates? And if so delete it? Would be a good idea...
+					//update t_avg in PUSHED agent
+					if(knowledge = true){
+						do update_delay;					
+					}
 				}
-				
 			}
 		}
+	}
+
+	//actively check surroundings for other agent and PULL knowledge about observations
+	action PULL_to_nearby_neighbors{// when: (!empty(agents_inside(my_cell.neighbors) of_species transporter) and (communication_mode = "PULL")) {
 		
-		mail_updates <- []; //agent sent all updates (without checking if they were applied or succesful). Reset list.
+		list<transporter> neighboring_agents <-  agents_inside(my_cell.neighbors) of_species transporter; //returns list of all other transporters inside surroundings
 		
-		if(tmp_traffic != 0) //if != 0 --> communication took place
-		{
-			do increase_traffic(tmp_traffic);
+		//Demers et al. take SOME of the other databases; we PULL neighbors to all for now
+		ask neighboring_agents{
+				
+			loop col over: self.timestamps.keys {
+				
+				total_traffic <- total_traffic + 1; //got update mail from other agent
+				
+				if(((myself.timestamps at col) < (self.timestamps at col)) or !(myself.timestamps.keys contains col)){
+											
+					add (self.agent_model at col) at:col to: myself.agent_model; //save color and position
+					add (self.timestamps at col) at:col to: myself.timestamps; //save point in time of last information
+										
+					//update t_avg in PULLING agent
+					if(knowledge = true){
+						ask myself{
+							do update_delay;
+						}					
+					}
+				}		
+			}
 		}
 	}
 	
+	//actively check surroundings for other agent and PUSH-PULL knowledge about observations
+	action PUSH_PULL_to_nearby_neighbors{// when: (!empty(agents_inside(my_cell.neighbors) of_species transporter) and (communication_mode = "PUSH-PULL")) {
+		
+		list<transporter> neighboring_agents <-  agents_inside(my_cell.neighbors) of_species transporter; //returns list of all other transporters inside surroundings
+		
+		//Demers et al. take SOME of the other databases; we consider neighbors to all for now
+		
+		ask neighboring_agents{
+				
+			loop col over: self.timestamps.keys {
+				
+				if(((myself.timestamps at col) > (self.timestamps at col)) or !(self.timestamps.keys contains col)){
+					//PUSH
+					add (myself.agent_model at col) at:col to: self.agent_model; //save color and position
+					add (myself.timestamps at col) at:col to: self.timestamps; //save point in time of last information
+					
+					//update t_avg in PUSHED agent
+					if(knowledge = true){
+						do update_delay;					
+					}
+				} else if(((myself.timestamps at col) < (self.timestamps at col)) or !(myself.timestamps.keys contains col)){
+					//PULL								
+					add (self.agent_model at col) at:col to: myself.agent_model; //save color and position
+					add (self.timestamps at col) at:col to: myself.timestamps; //save point in time of last information
+				
+					//update t_avg in PULLING agent
+					if(knowledge = true){
+						ask myself{
+							do update_delay;
+						}					
+					}
+				}
+				
+				total_traffic <- total_traffic + 1; //mail between agents //TODO: wouldn't PUSH-PULL make two messages..?	
+			}
+		}
+	}
+	
+	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%1-to-1 communication%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	//actively check surroundings for ONE neighbor and PUSH own knowledge about observations
+	action AE1_PUSH {//when: (!empty(agents_inside(my_cell.neighbors) of_species transporter) and (communication_mode = "1-PUSH")) {
+		
+		transporter neighbor <-  one_of(agents_inside(my_cell.neighbors) of_species transporter); //returns one neighbor 
+		
+		//Demers et al. take SOME of the other databases; we PUSH neighbors to ONE neighbor
+		ask neighbor{
+				
+			loop col over: myself.timestamps.keys {
+				
+				total_traffic <- total_traffic + 1; //sent update mail to other agent
+				
+				if(((myself.timestamps at col) > (self.timestamps at col)) or !(self.timestamps.keys contains col)){
+											
+					add (myself.agent_model at col) at:col to: self.agent_model; //save color and position
+					add (myself.timestamps at col) at:col to: self.timestamps; //save point in time of last information
+					
+					//update t_avg in PUSHED agent
+					if(knowledge = true){
+						do update_delay;					
+					}
+				}
+			}
+		}
+	}
+	
+	//actively check surroundings for ONE neighbor and PULL knowledge about observations
+	action AE1_PULL {//when: (!empty(agents_inside(my_cell.neighbors) of_species transporter) and (communication_mode = "1-PULL")) {
+		
+		transporter neighbor <-  one_of(agents_inside(my_cell.neighbors) of_species transporter); //returns one neighbor
+		
+		//Demers et al. take SOME of the other databases; we PULL neighbors to all for now
+		ask neighbor{
+				
+			loop col over: self.timestamps.keys {
+				
+				total_traffic <- total_traffic + 1; //got update mail from other agent
+				
+				if(((myself.timestamps at col) < (self.timestamps at col)) or !(myself.timestamps.keys contains col)){
+											
+					add (self.agent_model at col) at:col to: myself.agent_model; //save color and position
+					add (self.timestamps at col) at:col to: myself.timestamps; //save point in time of last information
+					
+					//update t_avg in PULLING agent
+					if(knowledge = true){
+						ask myself{
+							do update_delay;
+						}					
+					}
+				}		
+			}
+		}
+	}
 	
 	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	
@@ -127,12 +266,11 @@ species transporter parent: superclass schedules:[]{
 	//--> every position may only be used once. Check if it is used more than one time. If so, eliminate all duplicates with older timestamps.
 	reflex consistency_check when:true {
 		
-		
 		loop stat over: agent_model.keys{	
 
 			list<rgb> duplicates <- agent_model.keys where (agent_model at each = (agent_model at stat)); //get all stations that point to the same position		
 
-			duplicates <- duplicates sort_by (timestamps at each); //sort in ascending order, means last is most recent ///???? 
+			duplicates <- duplicates sort_by (timestamps at each); //sort in ascending order, means last is most recent 
 			
 			duplicates <- duplicates - last(duplicates);
 				
@@ -150,7 +288,7 @@ species transporter parent: superclass schedules:[]{
 	
 	/*After surroundings, other agents and internal model have been checked, apply respective actions with up-to-date knowledge acc. to my model*/
 	//if i am empty or do not know where my item's station is -> wander
-	reflex random_movement when:((load = nil) or ((load != nil) and !(agent_model.keys contains load.color))) {
+	reflex random_movement when:((load = nil) or ((load != nil) and !(agent_model contains_key load.color))) {
 		
 		//generate a list of all my neighbor cells in a random order
 		list<shop_floor> s <- shuffle(my_cell.neighbors); //get all cells with distance ONE
@@ -164,11 +302,9 @@ species transporter parent: superclass schedules:[]{
 	}
 	
 	//if I transport an item and know it about the station, I'll go to nearest neighboring field of this station 
-	reflex exact_movement when:((load != nil) and (agent_model.keys contains load.color)) {
+	reflex exact_movement when:((load != nil) and (agent_model contains_key load.color)) {
 				
 		shop_floor target <- shop_floor(agent_model at load.color); //Key of pair contains the position. Target is the station itself, but we will not enter the stations cell. When we are next to it, our item will be loaded off, s.t. we won't enter the station 
-		
-		//write string(load.color) + " - " + string(agent_model at load.color) + " -- " + target; 
 		
 		//contains neighboring cells in ascending order of distance, meaning: first cell has least distance
 		list<shop_floor> options <- my_cell.neighbors sort_by (each distance_to target);
@@ -207,6 +343,7 @@ species transporter parent: superclass schedules:[]{
 			if(s.accept_color = load.color) {
 				
 				/*Update all variables and containers for investigations*/
+				if(performance = true){
 					put delivered[load.color]+1 key:load.color in: delivered; //count as delivered in respective colo category
 					total_delivered <- total_delivered +1; //increase counter for total amount of delivered things by 1
 					
@@ -215,7 +352,8 @@ species transporter parent: superclass schedules:[]{
 					int cycle_difference <- load.cycle_delivered - load.cycle_created; //calculate the cycle difference to add it to the evaluation variables in the next step
 					time_to_deliver_SUM <- time_to_deliver_SUM + cycle_difference ; //add it to the total sum
 					mean_of_delivered_cycles <- time_to_deliver_SUM/(total_delivered); //after successful delivery, update average amount of cycles
-		
+				}
+				
 				do deliver_load(); //load is delivered
 				do add_station_to_model(s); //as delivery was successful, we add the observation right now to our model
 				
@@ -252,11 +390,6 @@ species transporter parent: superclass schedules:[]{
 				location <- myself.my_cell.location;
 			}			
 	}
-	
-	action increase_traffic(int new_val){
-		total_traffic <- total_traffic +new_val;	//update total amount of send msgs
-		amt_of_cycles_when_communicated <- amt_of_cycles_when_communicated +1;//increase counter by 1
-	}
 
 		
 	action deliver_load{
@@ -275,6 +408,14 @@ species transporter parent: superclass schedules:[]{
 		
 	}
 
+	action update_delay{
+		//increase sum of time until notice
+		//increase counter for received updates
+		
+		t_avg <- t_avg + (cycle - t_inj);
+		updates <- updates +1;	
+	}
+
 	/*Adds an entry to the MBAs model, updates entries and checks for duplicates*/ 		
 	action add_station_to_model(station stat){
 		
@@ -285,7 +426,9 @@ species transporter parent: superclass schedules:[]{
 			add stat.location at:stat.accept_color to: agent_model; //save color and position
 			add cycle at:stat.accept_color to: timestamps; //save point in time of last information
 			
-			add stat.accept_color to: mail_updates; //send update mail to other agents
+			if(knowledge = true){
+				do update_delay;					
+			}
 			
 		} else { //obviously an observation has been made before then, but anyways //if(agent_model contains_key stat.accept_color)
 			
@@ -293,18 +436,15 @@ species transporter parent: superclass schedules:[]{
 			if((agent_model at stat.accept_color) = stat.location)
 			{
 				//everything still the same. Update time to current cycle, because observation is still valid and recent.
-
-				//TODO: We DO NOT update our observation - as it is still the same, the fact we observed in the past is obviously still valid and not a new fact!!
-				/////add cycle at:stat.accept_color to: timestamps;
-				/////ALSO, there is no update of the hot topics list here - still old stuff...
-				
 			} else { //Agent knows about this station, but it isn't where it says in the model 
 
 				//Agent knew about station before, but it has changed! Hence, update the model (as this is obvious, observed truth)
 				add stat.location at:stat.accept_color to: agent_model; //save color and position
 				add cycle at:stat.accept_color to: timestamps; //save point in time of observation
 			
-				add stat.accept_color to: mail_updates; //send update mail to other agents
+				if(knowledge = true){
+					do update_delay;					
+				}
 				
 				//By design, every station exists only once. This means that we should check, if there are now TWO (or more!) entries in the model, which contradict each other. 
 				//As our most recent update has been observed just now and observations outweigh implicated, contradicting untruths we issue DELETE all other contradicting information
@@ -338,7 +478,7 @@ species transporter parent: superclass schedules:[]{
 }
 
 //##########################################################
-experiment MBA_Direct_Mail_No_Charts type:gui{
+experiment MBA_AE_No_Charts type:gui{
 		
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles<-100;  
 	parameter var: width<-25; //25, 50, 100	
@@ -368,7 +508,7 @@ experiment MBA_Direct_Mail_No_Charts type:gui{
 	
 }
 
-experiment MBA_Direct_Mail type: gui {
+experiment MBA_AE type: gui {
 	// Define parameters here if necessary
 	
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles<-300;  
@@ -376,6 +516,12 @@ experiment MBA_Direct_Mail type: gui {
 	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
 	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
 	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 4*4 (16), 4*4*4 (64)
+	
+	
+	parameter "Measure performance" category: "Measure" var: performance <- true;
+	parameter "Measure knowledge" category: "Measure" var: knowledge <- false;
+	
+	parameter "Measure knowledge" category: "Measure" var: communication_mode among:["PUSH", "PULL", "1-PUSH", "1-PULL"];
 	
 	
 	//Define attributes, actions, a init section and behaviors if necessary
@@ -397,11 +543,7 @@ experiment MBA_Direct_Mail type: gui {
 			chart "Mean cycles to deliver" type:series size:{1 ,0.5} position:{0, 0}{
 					data "Mean of delivered cycles" value: mean_of_delivered_cycles color:#purple marker:false ;		
 			}
-			
-			chart "Average thing lifespan" type:series size:{1 ,0.5} position:{0, 0.5}{
-				
-					data "Average thing lifespan" value: avg_thing_lifespan color: #blue marker: false;		
-			}
+
 
 	 }
 	
@@ -423,7 +565,7 @@ experiment MBA_Direct_Mail type: gui {
 }
 
 /*Runs an amount of simulations in parallel, varies the the disturbance cycles*/
-experiment MBA_DM_var_batch type: batch until: (cycle >= 5000) repeat: 20 autorun: true keep_seed: true{ 
+/* experiment MBA_AE_var_batch type: batch until: (cycle >= 5000) repeat: 20 autorun: true keep_seed: true{ 
 
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
 	
@@ -445,7 +587,71 @@ experiment MBA_DM_var_batch type: batch until: (cycle >= 5000) repeat: 20 autoru
     	float avg_traffic <- ((self.sum_traffic = 0) ? 0 : self.sum_traffic/(self.no_transporter)) ; // sum of msgs per transporter / amount transporters 
     	
     	save [int(self), self.seed, disturbance_cycles, self.cycle, avg_traffic, self.total_delivered, mean_cyc_to_deliver] //..., ((total_delivered = 0) ? 0 : time_to_deliver_SUM/(total_delivered)) 
-           to: "result_var/"+ experiment.name +"_"+ string(width)+".csv" type: "csv" rewrite: false header: true; //rewrite: (int(self) = 0) ? true : false
+           to: "result_var/"+ experiment.name +"_"+communication_mode+"_"+ string(width)+".csv" type: "csv" rewrite: false header: true; //rewrite: (int(self) = 0) ? true : false
+    	}       
+	}		
+} */
+/*###########################################################*/
+/*Runs an amount of simulations in parallel, varies the the disturbance cycles*/
+experiment Performance type: batch until: (cycle >= 5000) repeat: 20 autorun: true keep_seed: true{ 
+
+	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
+	
+	parameter var: width<-25; //25, 50, 100	
+	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
+	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
+	parameter "No. of stations" category: "Stations" var: no_station<-4; //4, 4*4 (16), 4*4*4 (64)
+	
+	
+	parameter "Measure performance" category: "Measure" var: performance <- true;
+	parameter "Measure knowledge" category: "Measure" var: knowledge <- false;
+	
+	
+	reflex save_results_explo {
+    ask simulations {
+    	
+    	float mean_cyc_to_deliver <- ((self.total_delivered = 0) ? 0 : self.time_to_deliver_SUM/(self.total_delivered)); //
+    	
+    	save [int(self), disturbance_cycles, self.cycle, self.total_delivered, mean_cyc_to_deliver]
+           to: "simulation_results/performance/AE_"+ communication_mode+"_"+ experiment.name +"_"+ string(width)+".csv" type: "csv" rewrite: false header: true; 
+    	}       
+	}		
+}
+
+/*Runs an amount of simulations in parallel, varies the the disturbance cycles*/
+experiment Knowledge type: batch until: (cycle >= 1000) repeat:3 autorun: true keep_seed: true{ 
+
+	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
+	
+	parameter var: width<-25; //25, 50, 100	
+	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
+	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
+	parameter "No. of stations" category: "Stations" var: no_station<-4; //4, 4*4 (16), 4*4*4 (64)
+	
+	
+	parameter "Measure performance" category: "Measure" var: performance <- false;
+	parameter "Measure knowledge" category: "Measure" var: knowledge <- true;
+	
+	
+	reflex save_results_explo {
+    ask simulations {
+    	
+    	float mean_cyc_to_deliver <- ((self.total_delivered = 0) ? 0 : self.time_to_deliver_SUM/(self.total_delivered)); //
+    	
+    	float avg_traffic <- float(total_traffic) / no_transporter; //average amount of messages sent per transporter for whole simulation duration
+    	
+    	list<float> t_avgs <- [];
+    	
+		//calculate average delay per update (only applicable if updates have been received (-> updates != 0))
+    	ask self.transporter{
+     		if(self.updates != 0)
+    		{
+    			add self.t_avg/self.updates to: t_avgs; //calculate every agents average time to receive or notice an update, then calc mean over all values
+    		}		
+    	}
+    	
+    	save [int(self), disturbance_cycles, self.cycle, mean(self.residue), avg_traffic, mean(t_avgs)]
+           to: "simulation_results/knowledge/AE_"+ communication_mode+"_"+experiment.name +"_"+ string(width)+".csv" type: "csv" rewrite: false header: true; 
     	}       
 	}		
 }

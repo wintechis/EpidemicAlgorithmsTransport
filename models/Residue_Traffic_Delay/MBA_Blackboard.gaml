@@ -14,16 +14,38 @@ import "../Station_Item.gaml"
 
 global{
 			
-	map<rgb, point> station_position <- []; //represents the monolithic knowledge about positions of already found or communicated stations. Entries have shape [rgb::location]
-	float sum_traffic <-0 ; // sum of msgs per transporter / amount transporters
-		
+	//represents the monolithic knowledge about positions of already found or communicated stations. Entries have shape [rgb::location]
+	//We don't use a second timestamp map with [rgb::int] here, as we can easily see if a disturbance occured when the position of a station changed
+	map<rgb, point> station_position <- []; 
 	
 	init{						
 			create transporter number: no_transporter;	
 	}
+	
+	
+	//every "disturbance_cycles" cycles, we evluate the residue (aka the percentage of agents that do NOT know the truth)
+	reflex evaluate_residue when: (knowledge = true) and (cycle > 1) and every(disturbance_cycles-1){
 		
-	/* Investigation variables - PART II (other part is places before init block)*/
-	//noitem	
+		/*Residue is only evaluated against the global shared model as agents do not have local models.
+		 * Still, residue can be != 0.0 if not _all_ changes have been detected by agents (although communication and sharin among agents is assumed to be instant!).
+		 * It is assumed to be either 1.0 or 0.0 --> either all know everything or all only know a part of the truth 
+		 */
+		
+		//TODO: would this "all or nothing" strategy not pledge for a more differentiated measure (á la "what percentage of truth is known??")
+		
+		float amt_suscpetible <- 0.0;
+		
+		//TODO: this checks for ALL entries in the model and does not differentiate
+		//should we also consider "at least 1,2,3,...,N entries are correct"?	
+		if(station_position != truth){
+			amt_suscpetible <- 1.0;
+		}
+		
+		//hence either 0 or 1 - all changes were detected (and communicated) or still knowledge missing
+		add amt_suscpetible to: residue;
+		
+	}	
+	
 }
 
 
@@ -35,11 +57,29 @@ species scheduler schedules: shuffle(item+station+transporter);
 species transporter parent: superclass schedules:[]{
 	item load <- nil;
 	
-	float total_traffic <- 0; //average amount of messages sent to communicate
+	float t_avg <- 0.0; //average time after an update injection where this agent noted a change or got a msg about one
+	int updates <- 0; //received/noticed updates
+	
 	
 	init{
 		
 	}
+	
+	//actively check surroundings for stations and note down perceived facts
+	reflex check_surroundings_for_model when:(agents_inside(my_cell.neighbors) of_species station){
+			
+		station stat <-  first(agents_inside(my_cell.neighbors) of_species station); //gets the first station that is next to a transporter
+		
+		do add_knowledge(stat.location, stat.accept_color); //Adds a station to the tranporter's model, updates entries and checks for duplicates
+				
+	}
+	
+	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
+		//No communication takes place here, but rather in the centralized fashion when sending an update to the blackboard 
+			
+	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	
 	
 	//if i am empty or do not know where my item's station is -> wander
 	reflex random_movement when:((load = nil) or !(station_position contains_key load.color)) {
@@ -112,8 +152,10 @@ species transporter parent: superclass schedules:[]{
 			//if the station we picked has the color of our item
 			if(s.accept_color = load.color) {
 				
+				//if performance measure shall be evaluated
 				/*Update all variables and containers for investigations*/
-					put delivered[load.color]+1 key:load.color in: delivered; //count as delivered in respective colo category
+				if(performance = true){	
+					put delivered[load.color]+1 key:load.color in: delivered; //count as delivered in respective color category
 					total_delivered <- total_delivered +1; //increase counter for total amount of delivered items by 1
 					
 					//add current cycle to item to denote time when it was delivered
@@ -121,6 +163,7 @@ species transporter parent: superclass schedules:[]{
 					int cycle_difference <- load.cycle_delivered - load.cycle_created; //calculate the cycle difference to add it to the evaluation variables in the next step
 					time_to_deliver_SUM <- time_to_deliver_SUM + cycle_difference ; //add it to the total sum
 					mean_of_delivered_cycles <- time_to_deliver_SUM/(total_delivered); //after successful delivery, update average amount of cycles
+				}
 				
 				//if i did not know about this station before, add it to my model 
 				if(!(station_position contains_key load.color)){
@@ -168,13 +211,32 @@ species transporter parent: superclass schedules:[]{
 				location <- myself.my_cell.location;
 			}			
 	}
-		
+	
+	action update_delay{
+
+		//for ALL transporters, as ALL receive the update at the exact same moment
+		ask transporter{
+			
+			//increase sum of time until notice
+			t_avg <- t_avg + (cycle - t_inj);
+			//increase counter for received updates - 
+			updates <- updates +1;
+		}
+	}
+	
 	action add_knowledge(point pt, rgb col){
 		
 		//if something changed, send an update to the blackboard
 		if((station_position at col) != pt){
 			add pt at:col to: station_position; // add/update knowledge about new station and assign a point to a color
-			float total_traffic <- 0; 	
+			
+			if(knowledge = true){
+				do update_delay; //update the delay timer
+				total_traffic <- total_traffic + 1; //increase the amount of traffic as an update was sent to the blackboard
+				
+				//TODO: we only consider the update for the noticing&sending agent here, but in reality it send it to the blackboard - and the BB broadcasts to all other.. which means aren't there really in total "no_transporter" msgs per update? 
+		
+			}
 		}
 	}
 	
@@ -289,7 +351,7 @@ experiment MBA_BB type: gui {
 }
 
 /*Runs an amount of simulations in parallel, varies the the disturbance cycles*/
-experiment MBA_BB_var_batch type: batch until: (cycle >= 5000) repeat: 20 autorun: true keep_seed: true{ 
+/*experiment MBA_BB_var_batch type: batch until: (cycle >= 5000) repeat: 20 autorun: true keep_seed: true{ 
 
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
 	
@@ -312,6 +374,69 @@ experiment MBA_BB_var_batch type: batch until: (cycle >= 5000) repeat: 20 autoru
     	
     	save [int(self), self.seed, disturbance_cycles, self.cycle, avg_traffic, self.total_delivered, mean_cyc_to_deliver] //..., ((total_delivered = 0) ? 0 : time_to_deliver_SUM/(total_delivered)) 
            to: "result_var/"+ experiment.name +"_"+ string(width)+".csv" type: "csv" rewrite: false header: true; //rewrite: (int(self) = 0) ? true : false
+    	}       
+	}		
+}*/
+
+/*###########################################################*/
+/*Runs an amount of simulations in parallel, varies the the disturbance cycles*/
+experiment Performance type: batch until: (cycle >= 5000) repeat: 20 autorun: true keep_seed: true{ 
+
+	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
+	
+	parameter var: width<-25; //25, 50, 100	
+	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
+	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
+	parameter "No. of stations" category: "Stations" var: no_station<-4; //4, 4*4 (16), 4*4*4 (64)
+	
+	
+	parameter "Measure performance" category: "Measure" var: performance <- true;
+	parameter "Measure knowledge" category: "Measure" var: knowledge <- false;
+	
+	
+	reflex save_results_explo {
+    ask simulations {
+    	
+    	float mean_cyc_to_deliver <- ((self.total_delivered = 0) ? 0 : self.time_to_deliver_SUM/(self.total_delivered)); //
+    	
+    	save [int(self), disturbance_cycles, self.cycle, self.total_delivered, mean_cyc_to_deliver]
+           to: "simulation_results/performance/BB_"+ experiment.name +"_"+ string(width)+".csv" type: "csv" rewrite: false header: true; 
+    	}       
+	}		
+}
+
+/*Runs an amount of simulations in parallel, varies the the disturbance cycles*/
+experiment Knowledge type: batch until: (cycle >= 5000) repeat: 20 autorun: true keep_seed: true{ 
+
+	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
+	
+	parameter var: width<-25; //25, 50, 100	
+	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
+	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
+	parameter "No. of stations" category: "Stations" var: no_station<-4; //4, 4*4 (16), 4*4*4 (64)
+	
+	
+	parameter "Measure performance" category: "Measure" var: performance <- false;
+	parameter "Measure knowledge" category: "Measure" var: knowledge <- true;
+	
+	
+	reflex save_results_explo {
+    ask simulations {
+    	
+    	float avg_traffic <- float(total_traffic) / no_transporter; //average amount of messages sent per transporter for whole simulation duration
+    	
+    	list<float> t_avgs <- [];
+    	
+    	//calculate average delay per update (only applicable if updates have been received (-> updates != 0))
+    	ask self.transporter{
+    		if(self.updates != 0)
+    		{
+    			add self.t_avg/self.updates to: t_avgs; //calculate every agents average time to receive or notice an update, then calc mean over all values
+    		}		
+    	}
+    	
+    	save [int(self), disturbance_cycles, self.cycle, mean(self.residue), avg_traffic, mean(t_avgs)]
+           to: "simulation_results/knowledge/BB_"+ experiment.name +"_"+ string(width)+".csv" type: "csv" rewrite: false header: true; 
     	}       
 	}		
 }

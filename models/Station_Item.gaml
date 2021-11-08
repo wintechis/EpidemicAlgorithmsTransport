@@ -11,7 +11,6 @@ import "ShopFloor_Grid.gaml"
 
 global {
 
-	int scenario <- 1;
 	
 
 	int no_station <- 4;
@@ -22,10 +21,17 @@ global {
 	string selected_placement_mode <- placement_mode[0]; //default is 'strict'
 	float strict_placement_factor <- 0.33 min:0.1 max:0.45; //for strict mode to influence placement	
 	
-	float avg_thing_lifespan <- 0.0;
-	float sum_of_thing_lifespan <- 0.0;
+	map<rgb, point> truth; //holds the objective truth of stations and their positions
 	
-	map<rgb, point> truth;
+	
+	//flags to indicate what measures are evaluated
+	bool performance <- false; 
+	bool knowledge <- false;
+	
+	list<float> residue; //percentage of agents that did NOT get a specific update at the end of a disturbance cycle
+	int total_traffic <- 0; //total amount of msgs sent by agents during the simulation
+	int t_inj <- 0; //the last cycle where an update was injected
+	
 	
 	init{					
 		create station number: no_station returns: stations;
@@ -235,10 +241,22 @@ global {
 			
 			add location at: accept_color to: truth;	
 		}
+		
+		t_inj <- cycle; //save injection cycle
 	}
 	
 	/* Investigation variables - PART II (other part is placed before init block)*/
-	reflex update_avg_thing_lifespan{
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	/*reflex update_avg_thing_lifespan when: false{
 		
 		sum_of_thing_lifespan <- 0.0;
 		
@@ -252,7 +270,7 @@ global {
 		
 		avg_thing_lifespan <- ((length(item.population) = 0) ? 0 : sum_of_thing_lifespan /(length(item.population))); 
 		
-	}	
+	}	*/
 
 }
 
@@ -261,15 +279,10 @@ species item parent: superclass schedules:[]{
 	rgb color <- #white;
 	int cycle_created <- -1; //the cycle when this thing was created by a station
 	int cycle_delivered <- -1; //the cycle when this thing was delivered to a accepting station via a transporter	
-	int cycles_alive <- 0; //amount of cycles this thing is alive since its creation - lifespan
-	
+
 	aspect base{
 		
 		draw circle(cell_width*0.6) color: color border:#black;
-	}
-	
-	map get_states{
-		return create_map(["color", "location"],[color, location]);
 	}
 	
 	init{
@@ -277,11 +290,7 @@ species item parent: superclass schedules:[]{
 	
 	}
 	
-	action increase_cycles_alive{
-		
-		cycles_alive <- cycles_alive +1; //increase cycle counter
-		
-	}
+
 }
 
 species station parent: superclass schedules:[]{

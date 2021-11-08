@@ -1,25 +1,29 @@
 /**
-* Name: MBA_NonCom
+* Name: MBA_Rumor_with_DC
 * Author: Sebastian Schmid
-* Description: Communication for MBAs that do not communicate
+* Description: Local communication for MBAs using rumor based knowledge sharing (Feedback/Counter) 
 * Tags: 
 */
 
 
 @no_warning
-model MBA_NonCom
+model MBA_Rumor_with_DC
 
-import "../Station_Item.gaml"
+import "../../Station_Item.gaml"
 
 global{	
-		
+	
 	//knowledge spread stuff
 	list<string> tpid;
-	int sum_traffic <- 0;
+	int k <- 2; //max. amount of times the transporter endures unnecessary contacts (counter) - alternative is getting "non-infectious" with 1/k probability after an unsuccessful rumor sharing attempt
+	
+	int ttt <- 0; //time to truth - time it takes for all transporters to know the truth
+	
+	float avg_traffic <-0 ; // sum of avg msgs per transporter / amount transporters
 	
 	init{
 		create transporter number: no_transporter;		
-				
+		
 		ask transporter{
 			add name to: tpid;
 		}
@@ -36,7 +40,8 @@ global{
 		
 		if(length(tpid) = 0)
 		{
-//			write "All transporters know the truth -- " + cycle;
+			//write "All transporters know the truth -- " + cycle;
+			ttt <- cycle;
 		} 
 	}
 	
@@ -44,6 +49,23 @@ global{
 		ask transporter{
 			add name to: tpid;
 		}		
+	}
+	
+	reflex update_avg_traffic{
+		
+		
+		float sum_of_all <-0;
+		
+		ask transporter{
+			
+			//sum_of_all <- sum_of_all + (total_traffic / amt_of_cycles_when_communicated);
+			sum_of_all <- sum_of_all + ((amt_of_cycles_when_communicated = 0) ? 0 : (total_traffic / amt_of_cycles_when_communicated));
+		 
+		}
+		
+		avg_traffic <- sum_of_all / float(no_transporter); //avg traffic over all transporters per cycle
+		//write avg_traffic;
+		
 	}
 	
 }
@@ -62,7 +84,12 @@ species transporter parent: superclass schedules:[]{
 	map<rgb, point> agent_model <- []; //model about positions of already found or communicated stations. Entries have shape [rgb::location] 
 	map<rgb, int> timestamps <- []; //save the most recent point in time when an agent learned or observed about an station. [rgb::int]
 	
-	float total_traffic <- 0; //total amount of messages sent to communicate 
+	map<rgb,int> hot_topics <- []; //saves station color that want to be shared and the amount of times a failure is accepted (on 0 no attempt is made).
+	
+	map<rgb, int> deathcertificates <- []; // holds death certificates to indicate wrong inforamtion ("absence of items")
+	map<rgb,int> hot_dcs <- []; //saves DCs and counter
+	
+	float total_traffic <- 0; //average amount of messages sent to communicate 
 	float amt_of_cycles_when_communicated <-0; 
 	
 	init{
@@ -80,7 +107,55 @@ species transporter parent: superclass schedules:[]{
 	
 	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	
-		//No communication takes place here.
+	/* Rumor mongering is called a "complex epidemics" compared to anti-entropy (which is called a "simple epidemic").
+	 */
+//TODO: DC implementations
+	
+	//actively check surroundings for other agent and PUSH own knowledge about observations
+	reflex rumor_mongering when: (!empty(agents_inside(my_cell.neighbors) of_species transporter)) {
+		
+		//transporter contact <-  one_of(agents_inside(my_cell.neighbors) of_species transporter); //returns a random neighbor inside surroundings -- would be contact limit == 1
+		list<transporter> contact <-  agents_inside(my_cell.neighbors) of_species transporter; //returns a all neighbors inside surroundings
+		int tmp_traffic <-0; //holds amt of sent msgs this cycle
+		
+		//Demers et al. take SOME of the other databases; we consider neighbors to all for now
+		ask contact{
+			
+				
+			loop col over: myself.timestamps.keys {
+				
+				//if we are still interested in sharing this knowledge
+				if(myself.hot_topics at col > 0)
+				{
+					if(((myself.timestamps at col) > (self.timestamps at col))){// or !(self.timestamps.keys contains col)){
+											
+						add (myself.agent_model at col) at:col to: self.agent_model; //save color and position
+						add (myself.timestamps at col) at:col to: self.timestamps; //save point in time of last information
+						
+						add k at: col to: self.hot_topics; //make receiver "infected"
+					} else { //that is: the receiver already knew about this or its knowledge is more recent
+						
+						add (myself.hot_topics at col)-1 at: col to: myself.hot_topics; //reduce counter by 1 
+					}
+					
+					tmp_traffic <- tmp_traffic +1; //increase counter for sent msgs by one 
+				}
+				
+				
+				
+			}
+		}
+		
+		if(tmp_traffic != 0) //communication has taken place
+		{
+			total_traffic <- total_traffic +tmp_traffic;	//update total amount of send msgs
+			amt_of_cycles_when_communicated <- amt_of_cycles_when_communicated +1;//increase counter by 1
+			
+			write "" + name + "" + " communicated " + string(tmp_traffic) + " times in cycle " + cycle color:#black;
+		}
+		
+				 
+	}
 	
 	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	
@@ -211,13 +286,7 @@ species transporter parent: superclass schedules:[]{
 				location <- myself.my_cell.location;
 			}			
 	}
-	
-	action increase_traffic(int new_val){
-		total_traffic <- total_traffic +new_val;	//update total amount of send msgs
-		amt_of_cycles_when_communicated <- amt_of_cycles_when_communicated +1;//increase counter by 1
-	}
-
-		
+			
 	action deliver_load{
 		
 		ask load{
@@ -244,6 +313,8 @@ species transporter parent: superclass schedules:[]{
 			add stat.location at:stat.accept_color to: agent_model; //save color and position
 			add cycle at:stat.accept_color to: timestamps; //save point in time of last information
 			
+			//new entry --> hot topic list!
+			add k at: stat.accept_color to: hot_topics;
 			
 		} else { //obviously an observation has been made before then, but anyways //if(agent_model contains_key stat.accept_color)
 			
@@ -252,7 +323,7 @@ species transporter parent: superclass schedules:[]{
 			{
 				//everything still the same. Update time to current cycle, because observation is still valid and recent.
 
-				//TODO: We DO NOT update our observation - as it is still the same, the fact we observed in the past is obviously still valid and not a new fact!!
+				//We DO NOT update our observation - as it is still the same, the fact we observed in the past is obviously still valid and not a new fact!!
 				/////add cycle at:stat.accept_color to: timestamps;
 				/////ALSO, there is no update of the hot topics list here - still old stuff...
 				
@@ -261,7 +332,6 @@ species transporter parent: superclass schedules:[]{
 				//Agent knew about station before, but it has changed! Hence, update the model (as this is obvious, observed truth)
 				add stat.location at:stat.accept_color to: agent_model; //save color and position
 				add cycle at:stat.accept_color to: timestamps; //save point in time of observation
-			
 				
 				//By design, every station exists only once. This means that we should check, if there are now TWO (or more!) entries in the model, which contradict each other. 
 				//As our most recent update has been observed just now and observations outweigh implicated, contradicting untruths we issue DELETE all other contradicting information
@@ -270,6 +340,7 @@ species transporter parent: superclass schedules:[]{
 				list<rgb> duplicates <- agent_model.keys where (agent_model at each = stat.location);		
 				
 				duplicates <- duplicates - stat.accept_color; //as agent has just observed the stat with its color it is clear that it would occur in this list, hence remove it (it is the most recent entry...)
+				//TODO: better sort here ascending again and remove LAST entry aka the most recent one(?)				
 					
 				//remove all other duplicates
 				loop dup over: duplicates {
@@ -277,8 +348,14 @@ species transporter parent: superclass schedules:[]{
 					remove key: dup from: agent_model; //remove entry from agent's model
 					remove key: dup from: timestamps; //remove entry from observation timestamps 	
 				}
+				
+				//updated entry --> hot topic list!
+				add k at: stat.accept_color to: hot_topics;
+			
 			}
 		}
+		
+	
 	}
 			
 	aspect base{
@@ -295,13 +372,13 @@ species transporter parent: superclass schedules:[]{
 }
 
 //##########################################################
-experiment MBA_NonCom_No_Charts type:gui{
+experiment MBA_Rumor_with_DC_No_Charts type:gui{
 		
-	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles<-100;  
+	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles<-300;  
 	parameter var: width<-25; //25, 50, 100	
 	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
 	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
-	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 4*4 (16), 4*4*4 (64)
+	parameter "No. of stations" category: "Stations" var: no_station<-4*4; //4, 4*4 (16), 4*4*4 (64)
 	
 	
 	output {	
@@ -318,22 +395,21 @@ experiment MBA_NonCom_No_Charts type:gui{
 		 
 		  inspect "Agent_Model" value: transporter attributes: ["agent_model"] type:table;
 		  inspect "Timestamps" value: transporter attributes: ["timestamps"] type:table;
-		  //inspect "DCs" value: transporter attributes: ["death_certificates"] type:table;
+		  inspect "DCs" value: transporter attributes: ["hot_topics"] type:table;
 		  
 	 }
 	 
 	
 }
 
-experiment MBA_NonCom type: gui {
+experiment MBA_Rumor_with_DC type: gui {
 	// Define parameters here if necessary
 	
-	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles<-300;  
+	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles<-10000;  
 	parameter var: width<-25; //25, 50, 100	
 	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
 	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
-	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 4*4 (16), 4*4*4 (64)
-	
+	parameter "No. of stations" category: "Stations" var: no_station<-4; //4, 4*4 (16), 4*4*4 (64)
 	
 	//Define attributes, actions, a init section and behaviors if necessary
 	
@@ -355,10 +431,15 @@ experiment MBA_NonCom type: gui {
 					data "Mean of delivered cycles" value: mean_of_delivered_cycles color:#purple marker:false ;		
 			}
 			
-			chart "Average thing lifespan" type:series size:{1 ,0.5} position:{0, 0.5}{
+			chart "Average traffic" type:series size:{1 ,0.5} position:{0, 0.5}{
+				
+					data "Average traffic" value: avg_traffic color: #blue marker: false;		
+			}
+			
+			/*chart "Average thing lifespan" type:series size:{1 ,0.5} position:{0, 0.5}{
 				
 					data "Average thing lifespan" value: avg_thing_lifespan color: #blue marker: false;		
-			}
+			}*/
 
 	 }
 	
@@ -375,15 +456,35 @@ experiment MBA_NonCom type: gui {
 					datalist delivered.keys value: delivered.values color:delivered.keys ;
 			}
 		}	
-	}
+	
+	inspect "HOT TOPICS" value: transporter attributes: ["hot_topics"] type:table;		
+	
+	}  
   
 }
 
+/*Runs an amount of simulations in parallel, keeps the seeds and gives the final values after 10k cycles*/
+experiment MBA_Rumor_with_DC_batch type: batch until: (cycle >= 10000) repeat: 40 autorun: true keep_seed: true{
 
-/*Runs an amount of simulations in parallel, varies the the disturbance cycles*/
-experiment MBA_NonCom_var_batch type: batch until: (cycle >= 5000) repeat: 20 autorun: true keep_seed: true{ 
+	
+	reflex save_results_explo {
+    ask simulations {
+    	
+    	float mean_cyc_to_deliver <- ((self.total_delivered = 0) ? 0 : self.time_to_deliver_SUM/(self.total_delivered)); //
+    	
+    	save [int(self), self.seed, disturbance_cycles ,self.cycle, self.total_delivered, mean_cyc_to_deliver]
+          to: "result/3_MBA_GOSSIP_results.csv" type: "csv" rewrite: false header: true; 
+    	}       
+	}		
+}
 
-	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
+/*Runs an amount of simulations in parallel, varies the the disturbance cycles from 25 to 500 and gives the final values after 10k cycles*/
+experiment MBA_Rumor_with_DC_var_batch type: batch until: (cycle >= 10000) repeat: 40 autorun: true keep_seed: true{ 
+
+	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [25#cycles, 50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
+	
+	parameter "k" category: "Simulation settings" var: k among: [5,4,3]; //maximum attempts to spread rumor
+	
 	
 	parameter var: width<-25; //25, 50, 100	
 	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
@@ -396,14 +497,30 @@ experiment MBA_NonCom_var_batch type: batch until: (cycle >= 5000) repeat: 20 au
     	
     	float mean_cyc_to_deliver <- ((self.total_delivered = 0) ? 0 : self.time_to_deliver_SUM/(self.total_delivered)); //
     	
-    	ask self.transporter{
-    		sum_traffic <- total_traffic + sum_traffic; //add up total amount of msgs
-    	}
+    	save [int(self), self.seed, disturbance_cycles, self.cycle, self.total_delivered, mean_cyc_to_deliver] //..., ((total_delivered = 0) ? 0 : time_to_deliver_SUM/(total_delivered)) 
+           to: "result_var/"+string(width)+"_rumor.csv" type: "csv" rewrite: false header: true; //rewrite: (int(self) = 0) ? true : false
+    	}       
+	}		
+}
+
+/*Runs an amount of simulations in parallel, varies the the disturbance cycles from 25 to 500 and gives the final values after 10k cycles*/
+experiment varying_k type: batch until: (cycle >= 5000) repeat: 4 autorun: true keep_seed: true{ 
+
+	parameter "k" category: "Simulation settings" var: k among: [5,4,3,2,1]; //maximum attempts to spread rumor
+	
+	parameter var: width<-25; //25, 50, 100	
+	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
+	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
+	parameter "No. of stations" category: "Stations" var: no_station<-4; //4, 4*4 (16), 4*4*4 (64)
+	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles<-10000#cycles; //amount of cycles until stations change their positions
+	
+	reflex save_results_explo {
+    ask simulations {
     	
-    	float avg_traffic <- ((self.sum_traffic = 0) ? 0 : self.sum_traffic/(self.no_transporter)) ; // sum of msgs per transporter / amount transporters 
+    	float mean_cyc_to_deliver <- ((self.total_delivered = 0) ? 0 : self.time_to_deliver_SUM/(self.total_delivered)); //
     	
-    	save [int(self), self.seed, disturbance_cycles, self.cycle, avg_traffic, self.total_delivered, mean_cyc_to_deliver] //..., ((total_delivered = 0) ? 0 : time_to_deliver_SUM/(total_delivered)) 
-           to: "result_var/"+ experiment.name +"_"+ string(width)+".csv" type: "csv" rewrite: false header: true; //rewrite: (int(self) = 0) ? true : false
+    	save [int(self), self.seed, k, self.cycle, self.ttt , self.total_delivered, mean_cyc_to_deliver] //..., ((total_delivered = 0) ? 0 : time_to_deliver_SUM/(total_delivered)) 
+           to: "vary_k_"+string(width)+"_rumor.csv" type: "csv" rewrite: false header: true; //rewrite: (int(self) = 0) ? true : false
     	}       
 	}		
 }
