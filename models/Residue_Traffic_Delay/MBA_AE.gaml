@@ -521,7 +521,7 @@ experiment MBA_AE type: gui {
 	parameter "Measure performance" category: "Measure" var: performance <- true;
 	parameter "Measure knowledge" category: "Measure" var: knowledge <- false;
 	
-	parameter "Measure knowledge" category: "Measure" var: communication_mode among:["PUSH", "PULL", "1-PUSH", "1-PULL"];
+	parameter "communication_mode" category: "Measure" var: communication_mode among:["PUSH", "PULL", "1-PUSH", "1-PULL"];
 	
 	
 	//Define attributes, actions, a init section and behaviors if necessary
@@ -602,7 +602,8 @@ experiment Performance type: batch until: (cycle >= 5000) repeat: 20 autorun: tr
 	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
 	parameter "No. of stations" category: "Stations" var: no_station<-4; //4, 4*4 (16), 4*4*4 (64)
 	
-	
+	parameter "communication_mode" category: "Measure" var: communication_mode among:["PUSH", "PULL", "1-PUSH", "1-PULL"];
+
 	parameter "Measure performance" category: "Measure" var: performance <- true;
 	parameter "Measure knowledge" category: "Measure" var: knowledge <- false;
 	
@@ -619,7 +620,7 @@ experiment Performance type: batch until: (cycle >= 5000) repeat: 20 autorun: tr
 }
 
 /*Runs an amount of simulations in parallel, varies the the disturbance cycles*/
-experiment Knowledge type: batch until: (cycle >= 1000) repeat:3 autorun: true keep_seed: true{ 
+experiment Knowledge type: batch until: (cycle >= 5000) repeat:20 autorun: true keep_seed: true{ 
 
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
 	
@@ -627,7 +628,8 @@ experiment Knowledge type: batch until: (cycle >= 1000) repeat:3 autorun: true k
 	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
 	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
 	parameter "No. of stations" category: "Stations" var: no_station<-4; //4, 4*4 (16), 4*4*4 (64)
-	
+
+	parameter "communication_mode" category: "Measure" var: communication_mode among:["PUSH", "PULL", "1-PUSH", "1-PULL"];
 	
 	parameter "Measure performance" category: "Measure" var: performance <- false;
 	parameter "Measure knowledge" category: "Measure" var: knowledge <- true;
