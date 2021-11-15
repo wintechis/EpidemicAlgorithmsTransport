@@ -439,18 +439,18 @@ experiment Performance type: batch until: (cycle >= 5000) repeat: 20 autorun: tr
 	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
 	parameter "No. of stations" category: "Stations" var: no_station<-4; //4, 4*4 (16), 4*4*4 (64)
 	
-	
 	parameter "Measure performance" category: "Measure" var: performance <- true;
 	parameter "Measure knowledge" category: "Measure" var: knowledge <- false;
 	
-	
+	parameter "Rumor attempts" category: "Measure" var: k <- 5; //max. amount of times the transporter endures unnecessary contacts (counter) - alternative is getting "non-infectious" with 1/k probability after an unsuccessful rumor sharing attempt
+		
 	reflex save_results_explo {
     ask simulations {
     	
     	float mean_cyc_to_deliver <- ((self.total_delivered = 0) ? 0 : self.time_to_deliver_SUM/(self.total_delivered)); //
     	
     	save [int(self), disturbance_cycles, self.cycle, self.total_delivered, mean_cyc_to_deliver]
-           to: "simulation_results/performance/RUMOR_"+ experiment.name +"_"+ string(width)+".csv" type: "csv" rewrite: false header: true; 
+           to: "simulation_results/performance/RUMOR"+k+"_"+ experiment.name +"_"+ string(width)+".csv" type: "csv" rewrite: false header: true; 
     	}       
 	}		
 }
@@ -465,11 +465,11 @@ experiment Knowledge type: batch until: (cycle >= 5000) repeat: 20 autorun: true
 	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
 	parameter "No. of stations" category: "Stations" var: no_station<-4; //4, 4*4 (16), 4*4*4 (64)
 	
-	
 	parameter "Measure performance" category: "Measure" var: performance <- false;
 	parameter "Measure knowledge" category: "Measure" var: knowledge <- true;
 	
-	
+	parameter "Rumor attempts" category: "Measure" var: k <- 5; //max. amount of times the transporter endures unnecessary contacts (counter) - alternative is getting "non-infectious" with 1/k probability after an unsuccessful rumor sharing attempt
+		
 	reflex save_results_explo {
     ask simulations {
     	
@@ -488,7 +488,7 @@ experiment Knowledge type: batch until: (cycle >= 5000) repeat: 20 autorun: true
     	}
     	
     	save [int(self), disturbance_cycles, self.cycle, mean(self.residue), avg_traffic, mean(t_avgs)]
-           to: "simulation_results/knowledge/RUMOR_"+experiment.name +"_"+ string(width)+".csv" type: "csv" rewrite: false header: true; 
+           to: "simulation_results/knowledge/RUMOR"+k+"_"+ experiment.name +"_"+ string(width)+".csv" type: "csv" rewrite: false header: true; 
     	}       
 	}		
 }
