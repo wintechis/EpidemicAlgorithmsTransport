@@ -434,15 +434,15 @@ experiment Performance type: batch until: (cycle >= 5000) repeat: 20 autorun: tr
 
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
 	
-	parameter var: width<-50; //25, 50, 100	
-	parameter var: cell_width<- 1.0; //2.0, 1.0 , 0.5
-	parameter "No. of transporters" category: "Transporter" var: no_transporter<-4*17 ; // 17, 4*17, 8*17
-	parameter "No. of stations" category: "Stations" var: no_station<-4*4; //4, 4*4 (16), 4*4*4 (64)
+	parameter var: width<-25; //25, 50, 100	
+	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
+	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
+	parameter "No. of stations" category: "Stations" var: no_station<-4; //4, 4*4 (16), 4*4*4 (64)
 	
 	parameter "Measure performance" category: "Measure" var: performance <- true;
 	parameter "Measure knowledge" category: "Measure" var: knowledge <- false;
 	
-	parameter "Rumor attempts" category: "Measure" var: k <- 5; //max. amount of times the transporter endures unnecessary contacts (counter) - alternative is getting "non-infectious" with 1/k probability after an unsuccessful rumor sharing attempt
+	parameter "Rumor attempts" category: "Measure" var: k <- 10; //max. amount of times the transporter endures unnecessary contacts (counter) - alternative is getting "non-infectious" with 1/k probability after an unsuccessful rumor sharing attempt
 		
 	reflex save_results_explo {
     ask simulations {
@@ -460,15 +460,15 @@ experiment Knowledge type: batch until: (cycle >= 5000) repeat: 20 autorun: true
 
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
 	
-	parameter var: width<-50; //25, 50, 100	
-	parameter var: cell_width<- 1.0; //2.0, 1.0 , 0.5
-	parameter "No. of transporters" category: "Transporter" var: no_transporter<-4*17 ; // 17, 4*17, 8*17
-	parameter "No. of stations" category: "Stations" var: no_station<-4*4; //4, 4*4 (16), 4*4*4 (64)
+	parameter var: width<-25; //25, 50, 100	
+	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
+	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
+	parameter "No. of stations" category: "Stations" var: no_station<-4; //4, 4*4 (16), 4*4*4 (64)
 	
 	parameter "Measure performance" category: "Measure" var: performance <- false;
 	parameter "Measure knowledge" category: "Measure" var: knowledge <- true;
 	
-	parameter "Rumor attempts" category: "Measure" var: k <- 5; //max. amount of times the transporter endures unnecessary contacts (counter) - alternative is getting "non-infectious" with 1/k probability after an unsuccessful rumor sharing attempt
+	parameter "Rumor attempts" category: "Measure" var: k <- 10; //max. amount of times the transporter endures unnecessary contacts (counter) - alternative is getting "non-infectious" with 1/k probability after an unsuccessful rumor sharing attempt
 		
 	reflex save_results_explo {
     ask simulations {
