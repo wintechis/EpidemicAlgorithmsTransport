@@ -423,10 +423,10 @@ experiment Knowledge type: batch until: (cycle >= 5000) repeat: 20 autorun: true
 	reflex save_results_explo {
     ask simulations {
     	
-    	float avg_traffic <- float(total_traffic) / no_transporter; //average amount of messages sent per transporter for whole simulation duration
+    	float avg_traffic <- float( self.total_traffic ) / self.no_transporter; //average amount of messages sent per transporter for whole simulation duration
     	
     	list<float> t_avgs <- [];
-    	
+    	    	
     	//calculate average delay per update (only applicable if updates have been received (-> updates != 0))
     	ask self.transporter{
     		if(self.updates != 0)

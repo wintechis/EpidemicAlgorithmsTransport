@@ -489,7 +489,7 @@ experiment Knowledge type: batch until: (cycle >= 5000) repeat: 20 autorun: true
     	
     	float mean_cyc_to_deliver <- ((self.total_delivered = 0) ? 0 : self.time_to_deliver_SUM/(self.total_delivered)); //
     	
-    	float avg_traffic <- float(total_traffic) / no_transporter; //average amount of messages sent per transporter for whole simulation duration
+    	float avg_traffic <- float( self.total_traffic ) / self.no_transporter; //average amount of messages sent per transporter for whole simulation duration
     	
     	list<float> t_avgs <- [];
     	
