@@ -623,7 +623,7 @@ experiment Performance type: batch until: (cycle >= 5000) repeat: 20 autorun: tr
 experiment Knowledge type: batch until: (cycle >= 5000) repeat:20 autorun: true keep_seed: true{ 
 
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
-	
+
 	parameter var: width<-25; //25, 50, 100	
 	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
 	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
@@ -637,8 +637,6 @@ experiment Knowledge type: batch until: (cycle >= 5000) repeat:20 autorun: true 
 	
 	reflex save_results_explo {
     ask simulations {
-    	
-    	float mean_cyc_to_deliver <- ((self.total_delivered = 0) ? 0 : self.time_to_deliver_SUM/(self.total_delivered)); //
     	
     	float avg_traffic <- float( self.total_traffic ) / self.no_transporter; //average amount of messages sent per transporter for whole simulation duration
     	
@@ -679,7 +677,7 @@ experiment ExtendedPerformance type: batch until: (cycle >= 5000) repeat: 20 aut
     	
     	float mean_cyc_to_deliver <- ((self.total_delivered = 0) ? 0 : self.time_to_deliver_SUM/(self.total_delivered)); //
     	
-    	save [int(self), disturbance_cycles, self.cycle, self.total_delivered, mean_cyc_to_deliver]
+    	save [int(self), disturbance_cycles, self.cycle, self.no_transporter, self.total_delivered, mean_cyc_to_deliver]
            to: "result_var/performance_AE_transporter/AE_"+ communication_mode+"_"+ experiment.name +"_"+ string(width)+".csv" type: "csv" rewrite: false header: true; 
     	}       
 	}		

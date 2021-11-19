@@ -442,7 +442,7 @@ experiment Performance type: batch until: (cycle >= 5000) repeat: 20 autorun: tr
 	parameter "Measure performance" category: "Measure" var: performance <- true;
 	parameter "Measure knowledge" category: "Measure" var: knowledge <- false;
 	
-	parameter "Rumor attempts" category: "Measure" var: k <- 10; //max. amount of times the transporter endures unnecessary contacts (counter) - alternative is getting "non-infectious" with 1/k probability after an unsuccessful rumor sharing attempt
+	parameter "Rumor attempts" category: "Measure" var: k among: [5,10] ; //max. amount of times the transporter endures unnecessary contacts (counter) - alternative is getting "non-infectious" with 1/k probability after an unsuccessful rumor sharing attempt
 		
 	reflex save_results_explo {
     ask simulations {
@@ -468,7 +468,7 @@ experiment Knowledge type: batch until: (cycle >= 5000) repeat: 20 autorun: true
 	parameter "Measure performance" category: "Measure" var: performance <- false;
 	parameter "Measure knowledge" category: "Measure" var: knowledge <- true;
 	
-	parameter "Rumor attempts" category: "Measure" var: k <- 10; //max. amount of times the transporter endures unnecessary contacts (counter) - alternative is getting "non-infectious" with 1/k probability after an unsuccessful rumor sharing attempt
+	parameter "Rumor attempts" category: "Measure" var: k among: [5,10] ; //max. amount of times the transporter endures unnecessary contacts (counter) - alternative is getting "non-infectious" with 1/k probability after an unsuccessful rumor sharing attempt
 		
 	reflex save_results_explo {
     ask simulations {
