@@ -331,12 +331,15 @@ experiment MBA_NonCom_No_Charts type:gui{
 experiment MBA_NonCom type: gui {
 	// Define parameters here if necessary
 	
-	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles<-300;  
-	parameter var: width<-25; //25, 50, 100	
-	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
-	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
-	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 4*4 (16), 4*4*4 (64)
+	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles<-500;  
+		
+	parameter var: width<-50; //25, 50, 100	
+	parameter var: cell_width<- 1.0; //2.0, 1.0 , 0.5
+	parameter "No. of transporters" category: "Transporter" var: no_transporter<-64 ; // 17, 64 (4*17), 272 (4*4*17)
+	parameter "No. of stations" category: "Stations" var: no_station<-4*4; //4, 16 (4*4), 64 (4*4*4)
 	
+	parameter "Measure performance" category: "Measure" var: performance <- true;
+	parameter "Measure knowledge" category: "Measure" var: knowledge <- false;
 	
 	//Define attributes, actions, a init section and behaviors if necessary
 	
