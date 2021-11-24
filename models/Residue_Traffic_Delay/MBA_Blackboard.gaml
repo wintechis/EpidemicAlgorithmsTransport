@@ -31,12 +31,9 @@ global{
 		 * It is assumed to be either 1.0 or 0.0 --> either all know everything or all only know a part of the truth 
 		 */
 		
-		//TODO: would this "all or nothing" strategy not pledge for a more differentiated measure (á la "what percentage of truth is known??")
 		
 		float amt_suscpetible <- 0.0;
 		
-		//TODO: this checks for ALL entries in the model and does not differentiate
-		//should we also consider "at least 1,2,3,...,N entries are correct"?	
 		if(station_position != truth){
 			amt_suscpetible <- 1.0;
 		}
@@ -233,9 +230,7 @@ species transporter parent: superclass schedules:[]{
 			if(knowledge = true){
 				do update_delay; //update the delay timer
 				total_traffic <- total_traffic + 1; //increase the amount of traffic as an update was sent to the blackboard
-				
-				//TODO: we only consider the update for the noticing&sending agent here, but in reality it send it to the blackboard - and the BB broadcasts to all other.. which means aren't there really in total "no_transporter" msgs per update? 
-		
+						
 			}
 		}
 	}

@@ -73,7 +73,7 @@ grid shop_floor width: width height: width neighbors: 8 use_individual_shapes: f
 	//the amount of cells hence depends on the environment
 	//definition of a grid agent, here as shop floor cell agent with respective topology
 	
-	//TODO: removed (commented) all reflexes and variables for STIGMERGY behaviour, as we don't use them in this setting 
+	//removed (commented) all reflexes and variables for STIGMERGY behaviour, as we don't use them in this setting 
 	 
 	/////rgb color <- #white;// color is only used to display the colors. for recognition use colors_marks 
 	/////map<rgb,float> color_marks <- nil; //holds the color marks and is used for recognition of marks

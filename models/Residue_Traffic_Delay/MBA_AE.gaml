@@ -28,8 +28,6 @@ global{
 		
 		float amt_suscpetible <- 0;
 		
-		//TODO: this checks for ALL entries in the model and does not differentiate
-		//should we also consider "at least 1,2,3,...,N entries are correct"?	
 		ask transporter {
 			if(self.agent_model != truth){
 				amt_suscpetible <- amt_suscpetible  +1;
@@ -511,11 +509,11 @@ experiment MBA_AE_No_Charts type:gui{
 experiment MBA_AE type: gui {
 	// Define parameters here if necessary
 	
-	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles<-300;  
+	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles<-100;  
 	parameter var: width<-25; //25, 50, 100	
 	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
-	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
-	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 4*4 (16), 4*4*4 (64)
+	parameter "No. of transporters" category: "Transporter" var: no_transporter<-136 ; // 17, 4*17, 8*17
+	parameter "No. of stations" category: "Stations" var: no_station<-4; //4, 4*4 (16), 4*4*4 (64)
 	
 	
 	parameter "Measure performance" category: "Measure" var: performance <- true;

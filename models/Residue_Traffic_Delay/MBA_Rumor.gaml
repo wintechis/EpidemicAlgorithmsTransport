@@ -26,8 +26,6 @@ global{
 		
 		float amt_suscpetible <- 0;
 		
-		//TODO: this checks for ALL entries in the model and does not differentiate
-		//should we also consider "at least 1,2,3,...,N entries are correct"?	
 		ask transporter {
 			if(self.agent_model != truth){
 				amt_suscpetible <- amt_suscpetible  +1;

@@ -349,7 +349,7 @@ species transporter parent: superclass schedules:[]{
 			{
 				//everything still the same. Update time to current cycle, because observation is still valid and recent.
 
-				//TODO: We DO NOT update our observation - as it is still the same, the fact we observed in the past is obviously still valid and not a new fact!!
+				//We DO NOT update our observation - as it is still the same, the fact we observed in the past is obviously still valid and not a new fact!!
 				/////add cycle at:stat.accept_color to: timestamps;
 				/////ALSO, there is no update of the hot topics list here - still old stuff...
 				
