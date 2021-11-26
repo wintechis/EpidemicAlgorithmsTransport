@@ -424,7 +424,7 @@ experiment Performance type: batch until: (cycle >= 5000) repeat: 20 autorun: tr
 	parameter var: width<-50; //25, 50, 100	
 	parameter var: cell_width<- 1.0; //2.0, 1.0 , 0.5
 	parameter "No. of transporters" category: "Transporter" var: no_transporter<-64 ; // 17, 64 (4*17), 272 (4*4*17)
-	parameter "No. of stations" category: "Stations" var: no_station<-4*4; //4, 16 (4*4), 64 (4*4*4)
+	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 16 (4*4), 64 (4*4*4)
 	
 	
 	parameter "Measure performance" category: "Measure" var: performance <- true;
