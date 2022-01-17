@@ -4,21 +4,23 @@ This artifact contains the models and measurement for a study where we investiga
 We conduct experiments about the delivery of randomly produced items in this setting and compare the performance and communication behaviour of all strategies. 
 Overall, we want to provide insights on building and improving the communication among agent populations to achieve desired emergences in industrial transportation settings that avoids centralized components
 
-<img src="https://github.com/wintechis/Model_Based_VS_SRA_Stigmergy/blob/main/setup.png" alt="fig1" width="250"/>
-Fig. 1 - Initial setup for scenario A: 17 transporters, 4 stations, shop floor size 25x25
+Fig. 1a - Initial setup for scenario A: 17 transporters, 4 stations, shop floor size 25x25 | Fig. 1b - Initial setup for scenario B: 64 transporters, 16 stations, shop floor size 50x50
+:-------------------------:|:-------------------------:
+<img src="https://github.com/se-schmid/KnowledgeEx/blob/main/images/setupA.png" alt="fig1a" width="250"/> | <img src="https://github.com/se-schmid/KnowledgeEx/blob/main/images/setupB.png" alt="fig1b" width="250"/>
 
 
-<br>We simulate a shop floor (e.g. Fig. 1 for scenario A) that contains four major components (Fig. 2): a fixed number of stations and transporters, a varying amount of colored items, and a discrete, quadratic grid where transporters move. 
+
+<br>We simulate a shop floor (e.g. Fig. 1a for scenario A) that contains four major components (Fig. 2): a fixed number of stations and transporters, a varying amount of colored items, and a discrete, quadratic grid where transporters move. 
 Distinct colored items are randomly produced by stations and have to be transported to another designated station of matching color. Transporters shall fulfill this transportation task.  
 Each station can hold at most one item and waits until a transporter picks up the item before another one is produced. Transporters can carry only one item at a time. 
 As disturbance, we introduced fixed periods after which the stations' colors are randomly swapped. We varied these disturbances to occur every {50cyc,100cyc,250cyc,500cyc} cycles. Agents' perception is limited to their adjacent fields.
 
-<img src="https://github.com/wintechis/Model_Based_VS_SRA_Stigmergy/blob/main/BasicScenarioAnnotated.PNG" alt="fig2" width="250">
+<img src="https://github.com/se-schmid/KnowledgeEx/blob/main/images/BasicScenarioAnnotated.PNG" alt="fig2" width="250">
 Fig 2 - Shop floor components: A) Green station with pink item, B) Transporter with blue item, C) empty transporter, D) empty pink station. All components are located on the shop floor's tiles (black and white grid).
 
 We studied two scenarios:
-- Scenario A: 17 transporters, 4 stations, shop floor size 25x25
-- Scenario B: 64 transporters, 16 stations, shop floor size 50x50
+- Scenario A: 17 transporters, 4 stations, shop floor size 25x25 (cf. Fig 1a)
+- Scenario B: 64 transporters, 16 stations, shop floor size 50x50 (cf. Fig 1b)
 
 ## Contents
 /images - image files that display an overview of scenario A's task performance and communication
