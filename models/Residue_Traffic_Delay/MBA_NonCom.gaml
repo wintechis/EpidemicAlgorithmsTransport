@@ -1,7 +1,7 @@
 /**
 * Name: MBA_NonCom
 * Author: Sebastian Schmid
-* Description: Communication for MBAs that do not communicate
+* Description: Model for MBAs that do not communicate
 * Tags: 
 */
 
@@ -22,8 +22,7 @@ global{
 	reflex evaluate_residue when: (knowledge = true) and (cycle > 1) and every(disturbance_cycles-1){
 		
 		float amt_suscpetible <- 0;
-		
-		//should we also consider "at least 1,2,3,...,N entries are correct"?	
+
 		ask transporter {
 			if(self.agent_model != truth){
 				amt_suscpetible <- amt_suscpetible  +1;
@@ -298,10 +297,10 @@ species transporter parent: superclass schedules:[]{
 experiment MBA_NonCom_No_Charts type:gui{
 		
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles<-500;  
-	parameter var: width<-25; //25, 50, 100	
-	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
-	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
-	parameter "No. of stations" category: "Stations" var: no_station<-4; //4, 4*4 (16), 4*4*4 (64)
+	parameter var: width<-50; //25, 50	
+	parameter var: cell_width<- 1.0; //2.0, 1.0
+	parameter "No. of transporters" category: "Transporter" var: no_transporter<-64 ; // 17, 64
+	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 16 (4*4)
 	
 	parameter "Measure performance" category: "Measure" var: performance <- false;
 	parameter "Measure knowledge" category: "Measure" var: knowledge <- true;
@@ -333,10 +332,10 @@ experiment MBA_NonCom type: gui {
 	
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles<-500;  
 		
-	parameter var: width<-50; //25, 50, 100	
-	parameter var: cell_width<- 1.0; //2.0, 1.0 , 0.5
-	parameter "No. of transporters" category: "Transporter" var: no_transporter<-64 ; // 17, 64 (4*17), 272 (4*4*17)
-	parameter "No. of stations" category: "Stations" var: no_station<-4*4; //4, 16 (4*4), 64 (4*4*4)
+	parameter var: width<-50; //25, 50	
+	parameter var: cell_width<- 1.0; //2.0, 1.0
+	parameter "No. of transporters" category: "Transporter" var: no_transporter<-64 ; // 17, 64
+	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 16 (4*4)
 	
 	parameter "Measure performance" category: "Measure" var: performance <- true;
 	parameter "Measure knowledge" category: "Measure" var: knowledge <- false;
@@ -360,13 +359,6 @@ experiment MBA_NonCom type: gui {
 			chart "Mean cycles to deliver" type:series size:{1 ,0.5} position:{0, 0}{
 					data "Mean of delivered cycles" value: mean_of_delivered_cycles color:#purple marker:false ;		
 			}
-			
-			/* 
-			chart "Average thing lifespan" type:series size:{1 ,0.5} position:{0, 0.5}{
-				
-					data "Average thing lifespan" value: avg_thing_lifespan color: #blue marker: false;		
-			}*/
-
 	 }
 	
 	 display delivery_information refresh: every(20#cycles){
@@ -386,45 +378,16 @@ experiment MBA_NonCom type: gui {
   
 }
 
-
-/*Runs an amount of simulations in parallel, varies the the disturbance cycles*/
-/*experiment MBA_NonCom_var_batch type: batch until: (cycle >= 5000) repeat: 20 autorun: true keep_seed: true{ 
-
-	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
-	
-	parameter var: width<-25; //25, 50, 100	
-	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
-	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
-	parameter "No. of stations" category: "Stations" var: no_station<-4; //4, 4*4 (16), 4*4*4 (64)
-	
-	
-	reflex save_results_explo {
-    ask simulations {
-    	
-    	float mean_cyc_to_deliver <- ((self.total_delivered = 0) ? 0 : self.time_to_deliver_SUM/(self.total_delivered)); //
-    	
-    	ask self.transporter{
-    		sum_traffic <- total_traffic + sum_traffic; //add up total amount of msgs
-    	}
-    	
-    	float avg_traffic <- ((self.sum_traffic = 0) ? 0 : self.sum_traffic/(self.no_transporter)) ; // sum of msgs per transporter / amount transporters 
-    	
-    	save [int(self), self.seed, disturbance_cycles, self.cycle, avg_traffic, self.total_delivered, mean_cyc_to_deliver] //..., ((total_delivered = 0) ? 0 : time_to_deliver_SUM/(total_delivered)) 
-           to: "result_var/"+ experiment.name +"_"+ string(width)+".csv" type: "csv" rewrite: false header: true; //rewrite: (int(self) = 0) ? true : false
-    	}       
-	}		
-}*/
-
 /*###########################################################*/
 /*Runs an amount of simulations in parallel, varies the the disturbance cycles*/
 experiment Performance type: batch until: (cycle >= 5000) repeat: 20 autorun: true keep_seed: true{ 
 
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
 	
-	parameter var: width<-50; //25, 50, 100	
-	parameter var: cell_width<- 1.0; //2.0, 1.0 , 0.5
-	parameter "No. of transporters" category: "Transporter" var: no_transporter<-64 ; // 17, 64 (4*17), 272 (4*4*17)
-	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 16 (4*4), 64 (4*4*4)
+	parameter var: width<-50; //25, 50	
+	parameter var: cell_width<- 1.0; //2.0, 1.0
+	parameter "No. of transporters" category: "Transporter" var: no_transporter<-64 ; // 17, 64
+	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 16 (4*4)
 	
 	
 	parameter "Measure performance" category: "Measure" var: performance <- true;
@@ -447,10 +410,10 @@ experiment Knowledge type: batch until: (cycle >= 5000) repeat: 20 autorun: true
 
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
 	
-	parameter var: width<-50; //25, 50, 100	
-	parameter var: cell_width<- 1.0; //2.0, 1.0 , 0.5
-	parameter "No. of transporters" category: "Transporter" var: no_transporter<-64 ; // 17, 64, 272
-	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 16 (4*4), 64 (4*4*4)
+	parameter var: width<-50; //25, 50	
+	parameter var: cell_width<- 1.0; //2.0, 1.0
+	parameter "No. of transporters" category: "Transporter" var: no_transporter<-64 ; // 17, 64
+	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 16 (4*4)
 	
 	
 	parameter "Measure performance" category: "Measure" var: performance <- false;

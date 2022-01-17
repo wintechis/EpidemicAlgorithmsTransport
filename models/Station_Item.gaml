@@ -11,10 +11,8 @@ import "ShopFloor_Grid.gaml"
 
 global {
 
-	
-
 	int no_station <- 4;
-	int no_transporter <- 17;// min: 1 max: 100;
+	int no_transporter <- 17;
 	
 	float cell_width<- 1.0 ;
 
@@ -42,7 +40,7 @@ global {
 		list<rgb> col_tmp ;
 		
 		switch no_station{
-			
+			//Remark: we only support 4, 16 and 64 station right now
 			match 4{
 				
 				col_tmp <- [#red,#blue,#green, #orange];
@@ -245,33 +243,6 @@ global {
 		t_inj <- cycle; //save injection cycle
 	}
 	
-	/* Investigation variables - PART II (other part is placed before init block)*/
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	/*reflex update_avg_thing_lifespan when: false{
-		
-		sum_of_thing_lifespan <- 0.0;
-		
-		
-		ask item{
-			do increase_cycles_alive;
-			
-			sum_of_thing_lifespan <- sum_of_thing_lifespan + cycles_alive;	
-			
-		}
-		
-		avg_thing_lifespan <- ((length(item.population) = 0) ? 0 : sum_of_thing_lifespan /(length(item.population))); 
-		
-	}	*/
-
 }
 
 
@@ -299,9 +270,7 @@ species station parent: superclass schedules:[]{
 	
 	rgb accept_color <- nil; //colors that this stations accepts
 	
-	float max_proba_thing_creation <- 0.8;
-	float min_proba_thing_creation <- 0.01;
-	float proba_thing_creation <- rnd(min_proba_thing_creation , max_proba_thing_creation ); //probability that thing is created
+	float proba_thing_creation <- 0.8; //probability that thing is created
 	
 	list<rgb> valid_colors <- []; //contains all colors that may be created (= all stations colors MINUS its own color)
 	

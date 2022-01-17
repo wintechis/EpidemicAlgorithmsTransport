@@ -1,7 +1,7 @@
 /**
 * Name: MBA_AE
 * Author: Sebastian Schmid
-* Description: Local communication for MBAs using anti-entropy with push/pull/push-pull
+* Description: Local communication for MBAs using anti-entropy with push/pull (1-to-1 an 1-to-n)
 * Tags: 
 */
 
@@ -13,13 +13,10 @@ import "../Station_Item.gaml"
 
 global{	
 	
-	string communication_mode <- "PUSH"; //PUSH, PULL or PUSH-PULL, >or<, 1-PUSH, 1-PULL
+	string communication_mode <- "PUSH"; //PUSH, PULL >or<, 1-PUSH, 1-PULL
 	
 	init{
 		create transporter number: no_transporter;		
-		
-		//write "Agent communication mode is set to " + communication_mode color:#black ;	
-		//write "Distrubance cycle is " + disturbance_cycles;
 		
 	}
 
@@ -75,11 +72,8 @@ species transporter parent: superclass schedules:[]{
 	/*Demers et al. also discuss a limitation of connections to reduce the overall traffic (e.g. the limit the exchange to only 1 other database). They use it because of "realism reasons", as there might be lots of sites to update. 
 	 * Here, as out neighbors are per se only a small subset of the overall transporter population, we do not include another artificial limitation and rather consider all available exchange partners instead.
 	 */
-	
-	//Demers said AE is executed only periodically, so we can limit communication attempts to occur only ever X cycles and still assume the update will be spread among the population
-	int period <- 1#cycles; // we attempt an exchange with neighbors every X cycles 
-	
-	reflex communicate_with_neighbors when: (!empty(agents_inside(my_cell.neighbors) of_species transporter) and every(period) ) {
+		
+	reflex communicate_with_neighbors when: (!empty(agents_inside(my_cell.neighbors) of_species transporter)) {
 		
 		switch communication_mode{
 			
@@ -90,12 +84,7 @@ species transporter parent: superclass schedules:[]{
 			match "PULL"{
 				do PULL_to_nearby_neighbors;
 			}
-			
-			match "PUSH-PULL"{
-				do PUSH_to_nearby_neighbors;
-				do PULL_to_nearby_neighbors;
-			}
-			
+						
 			match "1-PUSH"{
 				do AE1_PUSH;
 			}
@@ -112,7 +101,7 @@ species transporter parent: superclass schedules:[]{
 	}
 	
 	//actively check surroundings for other agent and PUSH own knowledge about observations
-	action PUSH_to_nearby_neighbors{// when: (!empty(agents_inside(my_cell.neighbors) of_species transporter) and (communication_mode = "PUSH")) {
+	action PUSH_to_nearby_neighbors{
 		
 		list<transporter> neighboring_agents <-  agents_inside(my_cell.neighbors) of_species transporter; //returns list of all other transporters inside surroundings
 		
@@ -138,7 +127,7 @@ species transporter parent: superclass schedules:[]{
 	}
 
 	//actively check surroundings for other agent and PULL knowledge about observations
-	action PULL_to_nearby_neighbors{// when: (!empty(agents_inside(my_cell.neighbors) of_species transporter) and (communication_mode = "PULL")) {
+	action PULL_to_nearby_neighbors{
 		
 		list<transporter> neighboring_agents <-  agents_inside(my_cell.neighbors) of_species transporter; //returns list of all other transporters inside surroundings
 		
@@ -165,47 +154,9 @@ species transporter parent: superclass schedules:[]{
 		}
 	}
 	
-	//actively check surroundings for other agent and PUSH-PULL knowledge about observations
-	action PUSH_PULL_to_nearby_neighbors{// when: (!empty(agents_inside(my_cell.neighbors) of_species transporter) and (communication_mode = "PUSH-PULL")) {
-		
-		list<transporter> neighboring_agents <-  agents_inside(my_cell.neighbors) of_species transporter; //returns list of all other transporters inside surroundings
-		
-		//Demers et al. take SOME of the other databases; we consider neighbors to all for now
-		
-		ask neighboring_agents{
-				
-			loop col over: self.timestamps.keys {
-				
-				if(((myself.timestamps at col) > (self.timestamps at col)) or !(self.timestamps.keys contains col)){
-					//PUSH
-					add (myself.agent_model at col) at:col to: self.agent_model; //save color and position
-					add (myself.timestamps at col) at:col to: self.timestamps; //save point in time of last information
-					
-					//update t_avg in PUSHED agent
-					if(knowledge = true){
-						do update_delay;					
-					}
-				} else if(((myself.timestamps at col) < (self.timestamps at col)) or !(myself.timestamps.keys contains col)){
-					//PULL								
-					add (self.agent_model at col) at:col to: myself.agent_model; //save color and position
-					add (self.timestamps at col) at:col to: myself.timestamps; //save point in time of last information
-				
-					//update t_avg in PULLING agent
-					if(knowledge = true){
-						ask myself{
-							do update_delay;
-						}					
-					}
-				}
-				
-				total_traffic <- total_traffic + 1; //mail between agents //TODO: wouldn't PUSH-PULL make two messages..?	
-			}
-		}
-	}
-	
 	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%1-to-1 communication%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	//actively check surroundings for ONE neighbor and PUSH own knowledge about observations
-	action AE1_PUSH {//when: (!empty(agents_inside(my_cell.neighbors) of_species transporter) and (communication_mode = "1-PUSH")) {
+	action AE1_PUSH {
 		
 		transporter neighbor <-  one_of(agents_inside(my_cell.neighbors) of_species transporter); //returns one neighbor 
 		
@@ -231,7 +182,7 @@ species transporter parent: superclass schedules:[]{
 	}
 	
 	//actively check surroundings for ONE neighbor and PULL knowledge about observations
-	action AE1_PULL {//when: (!empty(agents_inside(my_cell.neighbors) of_species transporter) and (communication_mode = "1-PULL")) {
+	action AE1_PULL {
 		
 		transporter neighbor <-  one_of(agents_inside(my_cell.neighbors) of_species transporter); //returns one neighbor
 		
@@ -479,10 +430,10 @@ species transporter parent: superclass schedules:[]{
 experiment MBA_AE_No_Charts type:gui{
 		
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles<-100;  
-	parameter var: width<-25; //25, 50, 100	
-	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
-	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
-	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 4*4 (16), 4*4*4 (64)
+	parameter var: width<-25; //25, 50
+	parameter var: cell_width<- 2.0; //2.0, 1.0
+	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17
+	parameter "No. of stations" category: "Stations" var: no_station<-4; //4, 4*4 (16)
 	
 	
 	output {	
@@ -499,8 +450,6 @@ experiment MBA_AE_No_Charts type:gui{
 		 
 		  inspect "Agent_Model" value: transporter attributes: ["agent_model"] type:table;
 		  inspect "Timestamps" value: transporter attributes: ["timestamps"] type:table;
-		  //inspect "DCs" value: transporter attributes: ["death_certificates"] type:table;
-		  
 	 }
 	 
 	
@@ -510,10 +459,10 @@ experiment MBA_AE type: gui {
 	// Define parameters here if necessary
 	
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles<-100;  
-	parameter var: width<-25; //25, 50, 100	
-	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
-	parameter "No. of transporters" category: "Transporter" var: no_transporter<-136 ; // 17, 4*17, 8*17
-	parameter "No. of stations" category: "Stations" var: no_station<-4; //4, 4*4 (16), 4*4*4 (64)
+	parameter var: width<-50; //25, 50
+	parameter var: cell_width<- 1.0; //2.0, 1.0
+	parameter "No. of transporters" category: "Transporter" var: no_transporter<-4*17 ; // 17, 4*17
+	parameter "No. of stations" category: "Stations" var: no_station<-4*4; //4, 4*4 (16)
 	
 	
 	parameter "Measure performance" category: "Measure" var: performance <- true;
@@ -562,43 +511,16 @@ experiment MBA_AE type: gui {
   
 }
 
-/*Runs an amount of simulations in parallel, varies the the disturbance cycles*/
-/* experiment MBA_AE_var_batch type: batch until: (cycle >= 5000) repeat: 20 autorun: true keep_seed: true{ 
-
-	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
-	
-	parameter var: width<-25; //25, 50, 100	
-	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
-	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
-	parameter "No. of stations" category: "Stations" var: no_station<-4; //4, 4*4 (16), 4*4*4 (64)
-	
-	
-	reflex save_results_explo {
-    ask simulations {
-    	
-    	float mean_cyc_to_deliver <- ((self.total_delivered = 0) ? 0 : self.time_to_deliver_SUM/(self.total_delivered)); //
-    	
-    	ask self.transporter{
-    		sum_traffic <- total_traffic + sum_traffic; //add up total amount of msgs
-    	}
-    	
-    	float avg_traffic <- ((self.sum_traffic = 0) ? 0 : self.sum_traffic/(self.no_transporter)) ; // sum of msgs per transporter / amount transporters 
-    	
-    	save [int(self), self.seed, disturbance_cycles, self.cycle, avg_traffic, self.total_delivered, mean_cyc_to_deliver] //..., ((total_delivered = 0) ? 0 : time_to_deliver_SUM/(total_delivered)) 
-           to: "result_var/"+ experiment.name +"_"+communication_mode+"_"+ string(width)+".csv" type: "csv" rewrite: false header: true; //rewrite: (int(self) = 0) ? true : false
-    	}       
-	}		
-} */
 /*###########################################################*/
 /*Runs an amount of simulations in parallel, varies the the disturbance cycles*/
 experiment Performance type: batch until: (cycle >= 5000) repeat: 20 autorun: true keep_seed: true{ 
 
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
 	
-	parameter var: width<-50; //25, 50, 100	
-	parameter var: cell_width<- 1.0; //2.0, 1.0 , 0.5
-	parameter "No. of transporters" category: "Transporter" var: no_transporter<-4*17 ; // 17, 4*17, 8*17
-	parameter "No. of stations" category: "Stations" var: no_station<-4*4; //4, 4*4 (16), 4*4*4 (64)
+	parameter var: width<-50; //25, 50
+	parameter var: cell_width<- 1.0; //2.0, 1.0
+	parameter "No. of transporters" category: "Transporter" var: no_transporter<-4*17 ; // 17, 4*17
+	parameter "No. of stations" category: "Stations" var: no_station<-4*4; //4, 4*4 (16)
 	
 	parameter "communication_mode" category: "Measure" var: communication_mode among:["PUSH", "PULL", "1-PUSH", "1-PULL"];
 
@@ -622,10 +544,10 @@ experiment Knowledge type: batch until: (cycle >= 5000) repeat:20 autorun: true 
 
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
 
-	parameter var: width<-50; //25, 50, 100	
-	parameter var: cell_width<- 1.0; //2.0, 1.0 , 0.5
-	parameter "No. of transporters" category: "Transporter" var: no_transporter<-64 ; // 17, 64, 272
-	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 16 (4*4), 64 (4*4*4)
+	parameter var: width<-50; //25, 50
+	parameter var: cell_width<- 1.0; //2.0, 1.0
+	parameter "No. of transporters" category: "Transporter" var: no_transporter<-64 ; // 17, 64
+	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 16 (4*4)
 
 	parameter "communication_mode" category: "Measure" var: communication_mode among:["PUSH", "PULL", "1-PUSH", "1-PULL"];
 	
@@ -655,14 +577,14 @@ experiment Knowledge type: batch until: (cycle >= 5000) repeat:20 autorun: true 
 }
 
 /************************ */
-experiment ExtendedPerformance type: batch until: (cycle >= 5000) repeat: 20 autorun: true keep_seed: true{ 
+experiment Extended_performance type: batch until: (cycle >= 5000) repeat: 20 autorun: true keep_seed: true{ 
 
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
 	
-	parameter var: width<-25; //25, 50, 100	
-	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
+	parameter var: width<-25; //25, 50
+	parameter var: cell_width<- 2.0; //2.0, 1.0 
 	parameter "No. of transporters" category: "Transporter" var: no_transporter among: [34,68] ; //increased amount of transporters
-	parameter "No. of stations" category: "Stations" var: no_station<-4; //4, 4*4 (16), 4*4*4 (64)
+	parameter "No. of stations" category: "Stations" var: no_station<-4; //4, 4*4 (16)
 	
 	parameter "communication_mode" category: "Measure" var: communication_mode among:["PUSH", "PULL", "1-PUSH", "1-PULL"];
 
@@ -676,7 +598,7 @@ experiment ExtendedPerformance type: batch until: (cycle >= 5000) repeat: 20 aut
     	float mean_cyc_to_deliver <- ((self.total_delivered = 0) ? 0 : self.time_to_deliver_SUM/(self.total_delivered)); //
     	
     	save [int(self), disturbance_cycles, self.cycle, self.no_transporter, self.total_delivered, mean_cyc_to_deliver]
-           to: "result_var/performance_AE_transporter/AE_"+ communication_mode+"_"+ experiment.name +"_"+ string(width)+".csv" type: "csv" rewrite: false header: true; 
+           to: "result_var/simulation_results/_complete//AE_extended/AE_"+ communication_mode+"_"+ experiment.name +"_"+ string(width)+".csv" type: "csv" rewrite: false header: true; 
     	}       
 	}		
 }

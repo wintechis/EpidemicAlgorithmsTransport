@@ -112,7 +112,7 @@ species transporter parent: superclass schedules:[]{
 
 			list<rgb> duplicates <- agent_model.keys where (agent_model at each = (agent_model at stat)); //get all stations that point to the same position		
 
-			duplicates <- duplicates sort_by (timestamps at each); //sort in ascending order, means last is most recent ///???? 
+			duplicates <- duplicates sort_by (timestamps at each); //sort in ascending order, means last is most recent 
 			
 			duplicates <- duplicates - last(duplicates);
 				
@@ -147,8 +147,6 @@ species transporter parent: superclass schedules:[]{
 	reflex exact_movement when:((load != nil) and (agent_model.keys contains load.color)) {
 				
 		shop_floor target <- shop_floor(agent_model at load.color); //Key of pair contains the position. Target is the station itself, but we will not enter the stations cell. When we are next to it, our item will be loaded off, s.t. we won't enter the station 
-		
-		//write string(load.color) + " - " + string(agent_model at load.color) + " -- " + target; 
 		
 		//contains neighboring cells in ascending order of distance, meaning: first cell has least distance
 		list<shop_floor> options <- my_cell.neighbors sort_by (each distance_to target);
@@ -334,11 +332,10 @@ species transporter parent: superclass schedules:[]{
 experiment MBA_Direct_Mail_No_Charts type:gui{
 		
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles<-100;  
-	parameter var: width<-25; //25, 50, 100	
-	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
-	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
-	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 4*4 (16), 4*4*4 (64)
-	
+	parameter var: width<-50; //25, 50	
+	parameter var: cell_width<- 1.0; //2.0, 1.0
+	parameter "No. of transporters" category: "Transporter" var: no_transporter<-64 ; // 17, 64
+	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 16 (4*4)
 	
 	output {	
 		layout #split;
@@ -354,8 +351,6 @@ experiment MBA_Direct_Mail_No_Charts type:gui{
 		 
 		  inspect "Agent_Model" value: transporter attributes: ["agent_model"] type:table;
 		  inspect "Timestamps" value: transporter attributes: ["timestamps"] type:table;
-		  //inspect "DCs" value: transporter attributes: ["death_certificates"] type:table;
-		  
 	 }
 	 
 	
@@ -365,11 +360,10 @@ experiment MBA_Direct_Mail type: gui {
 	// Define parameters here if necessary
 	
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles<-300;  
-	parameter var: width<-25; //25, 50, 100	
-	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
-	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
-	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 4*4 (16), 4*4*4 (64)
-	
+	parameter var: width<-50; //25, 50	
+	parameter var: cell_width<- 1.0; //2.0, 1.0
+	parameter "No. of transporters" category: "Transporter" var: no_transporter<-64 ; // 17, 64
+	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 16 (4*4)
 	
 	//Define attributes, actions, a init section and behaviors if necessary
 	
@@ -412,44 +406,16 @@ experiment MBA_Direct_Mail type: gui {
   
 }
 
-/*Runs an amount of simulations in parallel, varies the the disturbance cycles*/
-/*experiment MBA_DM_var_batch type: batch until: (cycle >= 1000) repeat: 4 autorun: true keep_seed: true{ 
-
-	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
-	
-	parameter var: width<-25; //25, 50, 100	
-	parameter var: cell_width<- 2.0; //2.0, 1.0 , 0.5
-	parameter "No. of transporters" category: "Transporter" var: no_transporter<-17 ; // 17, 4*17, 8*17
-	parameter "No. of stations" category: "Stations" var: no_station<-4; //4, 4*4 (16), 4*4*4 (64)
-	
-	
-	reflex save_results_explo {
-    ask simulations {
-    	
-    	float mean_cyc_to_deliver <- ((self.total_delivered = 0) ? 0 : self.time_to_deliver_SUM/(self.total_delivered)); //
-    	
-    	ask self.transporter{
-    		myself.sum_traffic <- self.total_traffic + myself.sum_traffic; //add up total amount of msgs
-    	}
-    	
-    	float avg_traffic <- ((self.sum_traffic = 0) ? 0 : self.sum_traffic/(self.no_transporter)) ; // sum of msgs per transporter / amount transporters 
-    	
-    	save [int(self), self.seed, disturbance_cycles, self.cycle, avg_traffic, self.total_delivered, mean_cyc_to_deliver] //..., ((total_delivered = 0) ? 0 : time_to_deliver_SUM/(total_delivered)) 
-           to: "result_var/"+ experiment.name +"_"+ string(width)+".csv" type: "csv" rewrite: false header: true; //rewrite: (int(self) = 0) ? true : false
-    	}       
-	}		
-}*/
-
 /*###########################################################*/
 /*Runs an amount of simulations in parallel, varies the the disturbance cycles*/
 experiment Performance type: batch until: (cycle >= 5000) repeat: 20 autorun: true keep_seed: true{ 
 
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
 	
-	parameter var: width<-100; //25, 50, 100	
-	parameter var: cell_width<- 0.5; //2.0, 1.0 , 0.5
-	parameter "No. of transporters" category: "Transporter" var: no_transporter<-272 ; // 17, 64, 272
-	parameter "No. of stations" category: "Stations" var: no_station<-64; //4, 16 (4*4), 64 (4*4*4)
+	parameter var: width<-50; //25, 50	
+	parameter var: cell_width<- 1.0; //2.0, 1.0
+	parameter "No. of transporters" category: "Transporter" var: no_transporter<-64 ; // 17, 64
+	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 16 (4*4)
 	
 	
 	parameter "Measure performance" category: "Measure" var: performance <- true;
@@ -472,10 +438,10 @@ experiment Knowledge type: batch until: (cycle >= 5000) repeat: 20 autorun: true
 
 	parameter "Disturbance cycles" category: "Simulation settings" var: disturbance_cycles among: [50#cycles, 100#cycles, 250#cycles, 500#cycles]; //amount of cycles until stations change their positions
 	
-	parameter var: width<-50; //25, 50, 100	
-	parameter var: cell_width<- 1.0; //2.0, 1.0 , 0.5
-	parameter "No. of transporters" category: "Transporter" var: no_transporter<-64 ; // 17, 64, 272
-	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 16 (4*4), 64 (4*4*4)
+	parameter var: width<-50; //25, 50	
+	parameter var: cell_width<- 1.0; //2.0, 1.0
+	parameter "No. of transporters" category: "Transporter" var: no_transporter<-64 ; // 17, 64
+	parameter "No. of stations" category: "Stations" var: no_station<-16; //4, 16 (4*4)
 	
 	
 	parameter "Measure performance" category: "Measure" var: performance <- false;
