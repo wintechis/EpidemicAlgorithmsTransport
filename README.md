@@ -50,3 +50,7 @@ We studied two scenarios:
   - "No_Charts": same as above with shop floor tiles names, but without charts
   - "Performance/Knowledge": run a batch of simulations, pre-set to 5k cycles and 20 repetitions. Results are saved under the above given names in /Residue_Traffic_Delay/simulation_results/[knowledge,performance]/ ; size of shopfloor can be configured via parameters (see GAMA documentation).
 - Note that the simulation results are saved in separate files and have to be put externally together, e.g. to be displayed in a chart
+
+## Acknowledgments
+
+This work was partially funded by the German Federal Ministry of Education and Research through the MOSAIK project (grant no. 01IS18070A).
