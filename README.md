@@ -53,4 +53,4 @@ We studied two scenarios:
 
 ## Acknowledgments
 
-This work was partially funded by the German Federal Ministry of Education and Research through the MOSAIK project (grant no. 01IS18070A).
+This work was funded by the German Federal Ministry of Education and Research through the MOSAIK project (grant no. 01IS18070A).
